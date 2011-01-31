@@ -37,7 +37,7 @@ CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
 # Define how to test zip.so:
   INCLUDE(CTest)
   FIND_PROGRAM(LUA NAMES lua lua.bat)
-  ADD_TEST(basic ${LUA} ${CMAKE_CURRENT_SOURCE_DIR}/test.lua ${CMAKE_CURRENT_SOURCE_DIR}/ ${CMAKE_CURRENT_BINARY_DIR}/)
+  ADD_TEST(basic ${LUA} ${CMAKE_CURRENT_SOURCE_DIR}/test.lua ${CMAKE_CURRENT_BINARY_DIR}/)
 # / test zip.so
 
 # Where to install stuff

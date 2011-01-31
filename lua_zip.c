@@ -7,7 +7,7 @@
 #define ARCHIVE_MT "zip{archive}"
 
 #define check_archive(L, narg)                                   \
-    (*(struct zip**)luaL_checkudata((L), (narg), ARCHIVE_MT))
+    ((struct zip**)luaL_checkudata((L), (narg), ARCHIVE_MT))
 
 /* If zip_error is non-zero, then push an appropriate error message
  * onto the top of the Lua stack and return zip_error.  Otherwise,
@@ -52,9 +52,17 @@ static int S_archive_open(lua_State* L) {
  * problems.
  */
 static int S_archive_close(lua_State* L) {
-    struct zip* ar = check_archive(L, 1);
-    int err = zip_close(ar);
+    struct zip** ar  = check_archive(L, 1);
+    int          err;
+
+    if ( ! *ar ) return 0;
+
+    err = zip_close(*ar);
+    *ar = NULL;
+
     if ( S_push_error(L, err, errno) ) lua_error(L);
+
+
     return 0;
 }
 
@@ -62,9 +70,15 @@ static int S_archive_close(lua_State* L) {
  * was not explicitly closed.
  */
 static int S_archive_gc(lua_State* L) {
-    struct zip* ar = check_archive(L, 1);
-    zip_unchange_all(ar);
-    zip_close(ar);
+    struct zip** ar = check_archive(L, 1);
+
+    if ( ! *ar ) return 0;
+
+    zip_unchange_all(*ar);
+    zip_close(*ar);
+
+    *ar = NULL;
+
     return 0;
 }
 
@@ -83,9 +97,20 @@ static void S_register_archive(lua_State* L) {
     lua_pop(L, 1);
 }
 
+static int S_OR(lua_State* L) {
+    int result = 0;
+    int top = lua_gettop(L);
+    while ( top ) {
+        result |= luaL_checkint(L, top--);
+    }
+    lua_pushinteger(L, result);
+    return 1;
+}
+
 LUALIB_API int luaopen_zip(lua_State* L) {
     static luaL_reg fns[] = {
         { "open",     S_archive_open },
+        { "OR",       S_OR },
         { NULL, NULL }
     };
 
@@ -94,6 +119,12 @@ LUALIB_API int luaopen_zip(lua_State* L) {
 
     lua_pushnumber(L, ZIP_CREATE);
     lua_setfield(L, -2, "CREATE");
+
+    lua_pushnumber(L, ZIP_EXCL);
+    lua_setfield(L, -2, "EXCL");
+
+    lua_pushnumber(L, ZIP_CHECKCONS);
+    lua_setfield(L, -2, "CHECKCONS");
 
     S_register_archive(L);
 

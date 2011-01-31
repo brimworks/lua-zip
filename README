@@ -66,6 +66,10 @@ zip.FL_UNCHANGED
 
     Numbers that represent fopen "flags", see zip_arc:open().
 
+flags = zip.OR(flag1[, flag2[, flag3 ...]])
+
+    Perform a bitwise or on all the flags.
+
 local zip_arc = zip.open(filename [, flags])
 
     Open a zip archive optionally specifying a bitwise or of any of
