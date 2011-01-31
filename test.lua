@@ -19,6 +19,14 @@ function main()
     test_open_close()
     test_file_count()
     test_name_locate()
+    test_read_file()
+end
+
+function test_read_file()
+    local ar = assert(zip.open(test_zip))
+
+--    local file = ar:open("test/text.txt",
+    
 end
 
 function test_name_locate()
@@ -30,6 +38,12 @@ function test_name_locate()
     local err = select(2, ar:name_locate("DNE"))
     ok(string.match(err, "No such file"),
        tostring(err) .. " matches 'No such file'")
+
+    local idx = ar:name_locate("teST/teXT.txt", zip.FL_NOCASE)
+    ok(2 == idx, tostring(idx) .. " == 2")
+
+    idx = ar:name_locate("teXT.txt", zip.OR(zip.FL_NOCASE, zip.FL_NODIR))
+    ok(2 == idx, tostring(idx) .. " == 2")
 
     ar:close()
 end

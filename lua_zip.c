@@ -167,6 +167,12 @@ LUALIB_API int luaopen_zip(lua_State* L) {
     lua_pushnumber(L, ZIP_CHECKCONS);
     lua_setfield(L, -2, "CHECKCONS");
 
+    lua_pushnumber(L, ZIP_FL_NOCASE);
+    lua_setfield(L, -2, "FL_NOCASE");
+
+    lua_pushnumber(L, ZIP_FL_NODIR);
+    lua_setfield(L, -2, "FL_NODIR");
+
     S_register_archive(L);
 
     return 1;
