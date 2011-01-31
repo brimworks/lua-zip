@@ -17,6 +17,14 @@ local ok  = tap.ok
 
 function main()
     test_open_close()
+    text_file_count()
+end
+
+function text_file_count()
+    ar = assert(zip.open(test_zip))
+    ok(1 == #ar, tostring(#ar) .. " == 1")
+    ok(1 == ar:get_num_files(), tostring(ar:get_num_files()) .. " == 1")
+    ar:close()
 end
 
 function test_open_close()
@@ -30,12 +38,19 @@ function test_open_close()
     ar = assert(zip.open(test_zip))
     ar:close()
 
-    ar = assert(zip.open("test_open_close.zip",
-                         zip.OR(zip.CREATE,
-                                zip.EXCL,
-                                zip.CHECKCONS)))
-    ar:close()
+    do
+        local ar = assert(zip.open("test_open_close.zip",
+                                   zip.OR(zip.CREATE,
+                                          zip.EXCL,
+                                          zip.CHECKCONS)))
+        -- Purposfully do not close it so gc will close it.
+        --ar:close()
+    end
+
+    collectgarbage"collect"
+
     ok(true, "test_open_close was successful")
+    
 end
 
 main()

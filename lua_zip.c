@@ -82,6 +82,16 @@ static int S_archive_gc(lua_State* L) {
     return 0;
 }
 
+static int S_archive_get_num_files(lua_State* L) {
+    struct zip** ar = check_archive(L, 1);
+
+    if ( ! *ar ) return 0;
+
+    lua_pushinteger(L, zip_get_num_files(*ar));
+
+    return 1;
+}
+
 static void S_register_archive(lua_State* L) {
     luaL_newmetatable(L, ARCHIVE_MT);
 
@@ -93,6 +103,12 @@ static void S_register_archive(lua_State* L) {
 
     lua_pushcfunction(L, S_archive_gc);
     lua_setfield(L, -2, "__gc");
+
+    lua_pushcfunction(L, S_archive_get_num_files);
+    lua_setfield(L, -2, "get_num_files");
+
+    lua_pushcfunction(L, S_archive_get_num_files);
+    lua_setfield(L, -2, "__len");
 
     lua_pop(L, 1);
 }
