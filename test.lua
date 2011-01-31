@@ -17,13 +17,27 @@ local ok  = tap.ok
 
 function main()
     test_open_close()
-    text_file_count()
+    test_file_count()
+    test_name_locate()
 end
 
-function text_file_count()
-    ar = assert(zip.open(test_zip))
-    ok(1 == #ar, tostring(#ar) .. " == 1")
-    ok(1 == ar:get_num_files(), tostring(ar:get_num_files()) .. " == 1")
+function test_name_locate()
+    local ar = assert(zip.open(test_zip))
+
+    ok(2 == ar:name_locate("test/text.txt"),
+       tostring(ar:name_locate("test/text.txt")) .. " == 2");
+
+    local err = select(2, ar:name_locate("DNE"))
+    ok(string.match(err, "No such file"),
+       tostring(err) .. " matches 'No such file'")
+
+    ar:close()
+end
+
+function test_file_count()
+    local ar = assert(zip.open(test_zip))
+    ok(2 == #ar, tostring(#ar) .. " == 2")
+    ok(2 == ar:get_num_files(), tostring(ar:get_num_files()) .. " == 2")
     ar:close()
 end
 

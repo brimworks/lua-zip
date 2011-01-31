@@ -92,6 +92,28 @@ static int S_archive_get_num_files(lua_State* L) {
     return 1;
 }
 
+static int S_archive_name_locate(lua_State* L) {
+    struct zip** ar    = check_archive(L, 1);
+    const char*  fname = luaL_checkstring(L, 2);
+    int          flags = (lua_gettop(L) < 3) ? 0 : luaL_checkint(L, 3);
+    int          idx;
+
+    if ( ! *ar ) return 0;
+
+    idx = zip_name_locate(*ar, fname, flags);
+
+    if ( idx < 0 ) {
+        int zip_err, sys_err;
+        zip_error_get(*ar, &zip_err, &sys_err);
+        lua_pushnil(L);
+        S_push_error(L, zip_err, sys_err);
+        return 2;
+    }
+
+    lua_pushinteger(L, idx+1);
+    return 1;
+}
+
 static void S_register_archive(lua_State* L) {
     luaL_newmetatable(L, ARCHIVE_MT);
 
@@ -109,6 +131,9 @@ static void S_register_archive(lua_State* L) {
 
     lua_pushcfunction(L, S_archive_get_num_files);
     lua_setfield(L, -2, "__len");
+
+    lua_pushcfunction(L, S_archive_name_locate);
+    lua_setfield(L, -2, "name_locate");
 
     lua_pop(L, 1);
 }
