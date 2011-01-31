@@ -5,6 +5,7 @@
 #include <errno.h>
 
 #define ARCHIVE_MT "zip{archive}"
+#define ARCHIVE_FILE_MT "zip{archive.file}"
 
 #define check_archive(L, narg)                                   \
     ((struct zip**)luaL_checkudata((L), (narg), ARCHIVE_MT))
@@ -114,26 +115,93 @@ static int S_archive_name_locate(lua_State* L) {
     return 1;
 }
 
+static int S_archive_file_open(lua_State* L) {
+    struct zip** ar        = check_archive(L, 1);
+    const char*  path      = (lua_isnumber(L, 2)) ? NULL : luaL_checkstring(L, 2);
+    int          path_idx  = (lua_isnumber(L, 2)) ? luaL_checkint(L, 2) : -1;
+    int          flags     = (lua_gettop(L) < 3)  ? 0    : luaL_checkint(L, 3); 
+    struct zip_file** file = (struct zip_file**)
+        lua_newuserdata(L, sizeof(struct zip_file*));
+
+    *file = NULL;
+
+    if ( ! *ar ) return 0;
+
+    if ( NULL == path ) {
+        *file = zip_fopen_index(*ar, path_idx, flags);
+    } else {
+        *file = zip_fopen(*ar, path, flags);
+    }
+
+    if ( ! *file ) {
+        int zip_err, sys_err;
+        zip_error_get(*ar, &zip_err, &sys_err);
+        lua_pushnil(L);
+        S_push_error(L, zip_err, sys_err);
+        return 2;
+    }
+
+    luaL_getmetatable(L, ARCHIVE_FILE_MT);
+    assert(!lua_isnil(L, -1)/* ARCHIVE_FILE_MT found? */);
+
+    lua_setmetatable(L, -2);
+
+    return 1;
+}
+
+static int S_archive_file_close(lua_State* L) {
+    return 0;
+}
+
+static int S_archive_file_gc(lua_State* L) {
+    return 0;
+}
+
+static int S_archive_file_read(lua_State* L) {
+    return 0;
+}
+
 static void S_register_archive(lua_State* L) {
     luaL_newmetatable(L, ARCHIVE_MT);
 
     lua_pushvalue(L, -1);
     lua_setfield(L, -2, "__index");
 
-    lua_pushcfunction(L, S_archive_close);
-    lua_setfield(L, -2, "close");
-
     lua_pushcfunction(L, S_archive_gc);
     lua_setfield(L, -2, "__gc");
 
     lua_pushcfunction(L, S_archive_get_num_files);
-    lua_setfield(L, -2, "get_num_files");
+    lua_setfield(L, -2, "__len");
+
+    lua_pushcfunction(L, S_archive_close);
+    lua_setfield(L, -2, "close");
 
     lua_pushcfunction(L, S_archive_get_num_files);
-    lua_setfield(L, -2, "__len");
+    lua_setfield(L, -2, "get_num_files");
 
     lua_pushcfunction(L, S_archive_name_locate);
     lua_setfield(L, -2, "name_locate");
+
+    lua_pushcfunction(L, S_archive_file_open);
+    lua_setfield(L, -2, "open");
+
+    lua_pop(L, 1);
+}
+
+static void S_register_archive_file(lua_State* L) {
+    luaL_newmetatable(L, ARCHIVE_FILE_MT);
+
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
+
+    lua_pushcfunction(L, S_archive_file_close);
+    lua_setfield(L, -2, "close");
+
+    lua_pushcfunction(L, S_archive_file_gc);
+    lua_setfield(L, -2, "__gc");
+
+    lua_pushcfunction(L, S_archive_file_read);
+    lua_setfield(L, -2, "read");
 
     lua_pop(L, 1);
 }
@@ -158,22 +226,20 @@ LUALIB_API int luaopen_zip(lua_State* L) {
     lua_newtable(L);
     luaL_register(L, NULL, fns);
 
-    lua_pushnumber(L, ZIP_CREATE);
-    lua_setfield(L, -2, "CREATE");
+#define EXPORT_CONSTANT(NAME) \
+    lua_pushnumber(L, ZIP_##NAME); \
+    lua_setfield(L, -2, #NAME)
 
-    lua_pushnumber(L, ZIP_EXCL);
-    lua_setfield(L, -2, "EXCL");
-
-    lua_pushnumber(L, ZIP_CHECKCONS);
-    lua_setfield(L, -2, "CHECKCONS");
-
-    lua_pushnumber(L, ZIP_FL_NOCASE);
-    lua_setfield(L, -2, "FL_NOCASE");
-
-    lua_pushnumber(L, ZIP_FL_NODIR);
-    lua_setfield(L, -2, "FL_NODIR");
+    EXPORT_CONSTANT(CREATE);
+    EXPORT_CONSTANT(EXCL);
+    EXPORT_CONSTANT(CHECKCONS);
+    EXPORT_CONSTANT(FL_NOCASE);
+    EXPORT_CONSTANT(FL_NODIR);
+    EXPORT_CONSTANT(FL_COMPRESSED);
+    EXPORT_CONSTANT(FL_UNCHANGED);
 
     S_register_archive(L);
+    S_register_archive_file(L);
 
     return 1;
 }

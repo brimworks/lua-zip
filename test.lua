@@ -25,8 +25,13 @@ end
 function test_read_file()
     local ar = assert(zip.open(test_zip))
 
---    local file = ar:open("test/text.txt",
-    
+    local file = ar:open("test/text.txt")
+    local str = file:read(256)
+    ok(str == "one\ntwo\nthree\n",
+       "[" .. tostring(str) .. "] == [one\ntwo\nthree\n]")
+
+    file:close()
+    ar:close()
 end
 
 function test_name_locate()
