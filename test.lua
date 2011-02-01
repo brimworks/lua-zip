@@ -25,12 +25,19 @@ end
 function test_read_file()
     local ar = assert(zip.open(test_zip))
 
-    local file = ar:open("test/text.txt")
+    local file = assert(ar:open("test/text.txt"))
     local str = file:read(256)
     ok(str == "one\ntwo\nthree\n",
        "[" .. tostring(str) .. "] == [one\ntwo\nthree\n]")
 
     file:close()
+
+    -- The data at index 2 is not compressed:
+    file = assert(ar:open(2, zip.FL_COMPRESSED))
+    str = file:read(256)
+    ok(str == "one\ntwo\nthree\n",
+       "[" .. tostring(str) .. "] == [one\ntwo\nthree\n]")
+
     ar:close()
 end
 

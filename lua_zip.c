@@ -10,6 +10,9 @@
 #define check_archive(L, narg)                                   \
     ((struct zip**)luaL_checkudata((L), (narg), ARCHIVE_MT))
 
+#define check_archive_file(L, narg)                                   \
+    ((struct zip_file**)luaL_checkudata((L), (narg), ARCHIVE_FILE_MT))
+
 /* If zip_error is non-zero, then push an appropriate error message
  * onto the top of the Lua stack and return zip_error.  Otherwise,
  * just return 0.
@@ -118,7 +121,7 @@ static int S_archive_name_locate(lua_State* L) {
 static int S_archive_file_open(lua_State* L) {
     struct zip** ar        = check_archive(L, 1);
     const char*  path      = (lua_isnumber(L, 2)) ? NULL : luaL_checkstring(L, 2);
-    int          path_idx  = (lua_isnumber(L, 2)) ? luaL_checkint(L, 2) : -1;
+    int          path_idx  = (lua_isnumber(L, 2)) ? luaL_checkint(L, 2)-1 : -1;
     int          flags     = (lua_gettop(L) < 3)  ? 0    : luaL_checkint(L, 3); 
     struct zip_file** file = (struct zip_file**)
         lua_newuserdata(L, sizeof(struct zip_file*));
@@ -150,15 +153,54 @@ static int S_archive_file_open(lua_State* L) {
 }
 
 static int S_archive_file_close(lua_State* L) {
+    struct zip_file** file = check_archive_file(L, 1);
+    int err;
+
+    if ( ! *file ) return 0;
+
+    err = zip_fclose(*file);
+    *file = NULL;
+
+    if ( err ) {
+        S_push_error(L, err, errno);
+        lua_error(L);
+    }
+
     return 0;
 }
 
 static int S_archive_file_gc(lua_State* L) {
+    struct zip_file** file = check_archive_file(L, 1);
+
+    if ( ! *file ) return 0;
+
+    zip_fclose(*file);
+    *file = NULL;
+
     return 0;
 }
 
 static int S_archive_file_read(lua_State* L) {
-    return 0;
+    struct zip_file** file = check_archive_file(L, 1);
+    int               len  = luaL_checkint(L, 2);
+    char*             buff;
+
+    if ( len <= 0 ) luaL_argerror(L, 2, "Must be > 0");
+
+    if ( ! *file ) return 0;
+
+    buff = (char*)lua_newuserdata(L, len);
+
+    len = zip_fread(*file, buff, len);
+
+    if ( -1 == len ) {
+        lua_pushnil(L);
+        lua_pushstring(L, zip_file_strerror(*file));
+        return 2;
+    }
+
+    lua_pushlstring(L, buff, len);
+    return 1;
 }
 
 static void S_register_archive(lua_State* L) {
