@@ -171,6 +171,57 @@ static int S_archive_name_locate(lua_State* L) {
     return 1;
 }
 
+static int S_archive_stat(lua_State* L) {
+    struct zip**    ar        = check_archive(L, 1);
+    const char*     path      = (lua_isnumber(L, 2)) ? NULL : luaL_checkstring(L, 2);
+    int             path_idx  = (lua_isnumber(L, 2)) ? luaL_checkint(L, 2)-1 : -1;
+    int             flags     = (lua_gettop(L) < 3)  ? 0    : luaL_checkint(L, 3); 
+    struct zip_stat stat;
+    int             result;
+
+    if ( ! *ar ) return 0;
+
+    if ( NULL == path ) {
+        result = zip_stat_index(*ar, path_idx, flags, &stat);
+    } else {
+        result = zip_stat(*ar, path, flags, &stat);
+    }
+
+    if ( result != 0 ) {
+        lua_pushnil(L);
+        lua_pushstring(L, zip_strerror(*ar));
+        return 2;
+    }
+
+    lua_createtable(L, 0, 8);
+
+    lua_pushstring(L, stat.name);
+    lua_setfield(L, -2, "name");
+
+    lua_pushinteger(L, stat.index+1);
+    lua_setfield(L, -2, "index");
+
+    lua_pushnumber(L, stat.crc);
+    lua_setfield(L, -2, "crc");
+
+    lua_pushnumber(L, stat.size);
+    lua_setfield(L, -2, "size");
+
+    lua_pushnumber(L, stat.mtime);
+    lua_setfield(L, -2, "mtime");
+
+    lua_pushnumber(L, stat.comp_size);
+    lua_setfield(L, -2, "comp_size");
+
+    lua_pushnumber(L, stat.comp_method);
+    lua_setfield(L, -2, "comp_method");
+
+    lua_pushnumber(L, stat.encryption_method);
+    lua_setfield(L, -2, "encryption_method");
+
+    return 1;
+}
+
 static int S_archive_file_open(lua_State* L) {
     struct zip** ar        = check_archive(L, 1);
     const char*  path      = (lua_isnumber(L, 2)) ? NULL : luaL_checkstring(L, 2);
@@ -281,6 +332,9 @@ static void S_register_archive(lua_State* L) {
 
     lua_pushcfunction(L, S_archive_file_open);
     lua_setfield(L, -2, "open");
+
+    lua_pushcfunction(L, S_archive_stat);
+    lua_setfield(L, -2, "stat");
 
     lua_pop(L, 1);
 }

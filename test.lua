@@ -20,7 +20,7 @@ function main()
     test_file_count()
     test_name_locate()
     test_read_file()
---    test_stat()
+    test_stat()
 end
 
 function test_stat()
@@ -29,12 +29,12 @@ function test_stat()
     local expect = {
         name = "test/text.txt",
         index = 2,
-        crc = 5,
-        size = 10,
-        mtime = 100,
-        comp_size = 10,
-        comp_method = 1,
-        encryption_method = 1,
+        crc = 635884982,
+        size = 14,
+        mtime = 1296450278,
+        comp_size = 14,
+        comp_method = 0,
+        encryption_method = 0,
     }
 
     local stat =
