@@ -6,12 +6,15 @@
 
 #define ARCHIVE_MT "zip{archive}"
 #define ARCHIVE_FILE_MT "zip{archive.file}"
+#define WEAK_MT "zip{weak}"
 
 #define check_archive(L, narg)                                   \
     ((struct zip**)luaL_checkudata((L), (narg), ARCHIVE_MT))
 
 #define check_archive_file(L, narg)                                   \
     ((struct zip_file**)luaL_checkudata((L), (narg), ARCHIVE_FILE_MT))
+
+#define absindex(L,i) ((i)>0?(i):lua_gettop(L)+(i)+1)
 
 /* If zip_error is non-zero, then push an appropriate error message
  * onto the top of the Lua stack and return zip_error.  Otherwise,
@@ -49,7 +52,53 @@ static int S_archive_open(lua_State* L) {
 
     lua_setmetatable(L, -2);
 
+    /* Each archive has a weak table of objects that are invalidated
+     * when the archive is closed or garbage collected.
+     */
+    lua_newtable(L);
+    luaL_getmetatable(L, WEAK_MT);
+    assert(!lua_isnil(L, -1)/* WEAK_MT found? */);
+
+    lua_setmetatable(L, -2);
+
+    lua_setfenv(L, -2);
+
     return 1;
+}
+
+/* Iterate over the fenv of ar_idx and call the __gc metamethod to
+ * assert that these objects are invalidated.  This functionality is
+ * necessary since the lifetime of these "child" objects is dependent
+ * on the archive "parent" object still existing.
+ */
+static void S_archive_gc_refs(lua_State* L, int ar_idx) {
+    lua_getfenv(L, ar_idx);
+    assert(lua_istable(L, -1) /* fenv of archive must exist! */);
+
+    lua_pushnil(L);
+    while ( lua_next(L, -2) != 0 ) {
+        if ( luaL_callmeta(L, -2, "__gc") ) {
+            lua_pop(L, 2);
+        } else {
+            lua_pop(L, 1);
+        }
+    }
+    lua_pop(L, 1); /* Pop the fenv */
+}
+
+/* Adds a reference from the archive at ar_idx to the object at
+ * obj_idx.  Adding this reference
+ */
+static void S_archive_add_ref(lua_State* L, int ar_idx, int obj_idx) {
+    obj_idx = absindex(L, obj_idx);
+    lua_getfenv(L, ar_idx);
+    assert(lua_istable(L, -1) /* fenv of archive must exist! */);
+
+    lua_pushvalue(L, obj_idx);
+    lua_pushboolean(L, 1);
+    lua_settable(L, -3);
+
+    lua_pop(L, 1); /* Pop the fenv */
 }
 
 /* Explicitly close the archive, throwing an error if there are any
@@ -60,6 +109,8 @@ static int S_archive_close(lua_State* L) {
     int          err;
 
     if ( ! *ar ) return 0;
+
+    S_archive_gc_refs(L, 1);
 
     err = zip_close(*ar);
     *ar = NULL;
@@ -77,6 +128,8 @@ static int S_archive_gc(lua_State* L) {
     struct zip** ar = check_archive(L, 1);
 
     if ( ! *ar ) return 0;
+
+    S_archive_gc_refs(L, 1);
 
     zip_unchange_all(*ar);
     zip_close(*ar);
@@ -148,6 +201,8 @@ static int S_archive_file_open(lua_State* L) {
     assert(!lua_isnil(L, -1)/* ARCHIVE_FILE_MT found? */);
 
     lua_setmetatable(L, -2);
+
+    S_archive_add_ref(L, 1, -1);
 
     return 1;
 }
@@ -248,6 +303,18 @@ static void S_register_archive_file(lua_State* L) {
     lua_pop(L, 1);
 }
 
+static void S_register_weak(lua_State* L) {
+    luaL_newmetatable(L, WEAK_MT);
+
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
+
+    lua_pushliteral(L, "k");
+    lua_setfield(L, -2, "__mode");
+
+    lua_pop(L, 1);
+}
+
 static int S_OR(lua_State* L) {
     int result = 0;
     int top = lua_gettop(L);
@@ -282,6 +349,7 @@ LUALIB_API int luaopen_zip(lua_State* L) {
 
     S_register_archive(L);
     S_register_archive_file(L);
+    S_register_weak(L);
 
     return 1;
 }

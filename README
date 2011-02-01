@@ -122,11 +122,6 @@ local file_idx = zip_arc:name_locate(filename [, flags])
 
     If it is not found, it returns nil plus an error message.
 
-######################################################################
-TODO: The following functions are not implemented yet:
-######################################################################
-
-
 local file = zip_arc:open(filename | file_idx [, flags])
 
     Returns a new file handle for the specified filename or file
@@ -153,6 +148,10 @@ file:close()
 local str = file:read(num)
 
     Read at most num characters from the file handle.
+
+######################################################################
+TODO: The following functions are not implemented yet:
+######################################################################
 
 local stat = zip_arc:stat(filename | file_idx [, flags])
 
