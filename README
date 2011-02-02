@@ -149,10 +149,6 @@ local str = file:read(num)
 
     Read at most num characters from the file handle.
 
-######################################################################
-TODO: The following functions are not implemented yet:
-######################################################################
-
 local stat = zip_arc:stat(filename | file_idx [, flags])
 
     Obtain information about the specified filename or file index.
@@ -186,6 +182,10 @@ local filename = zip_arc:get_name(file_idx [, flags])
 
         zip.FL_UNCHANGED
             See zip_arc:open().
+
+######################################################################
+TODO: The following functions are not implemented yet:
+######################################################################
 
 local comment = zip_arc:get_archive_comment([flags])
 

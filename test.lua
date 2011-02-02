@@ -21,6 +21,17 @@ function main()
     test_name_locate()
     test_read_file()
     test_stat()
+    test_get_name()
+end
+
+function test_get_name()
+    local ar = assert(zip.open(test_zip))
+
+    local name = ar:get_name(2, zip.FL_UNCHANGED);
+
+    ok(name == "test/text.txt", tostring(name) .. " == 'test/text.txt'")
+
+    ar:close()
 end
 
 function test_stat()
