@@ -25,6 +25,20 @@ function main()
     test_get_archive_comment()
     test_set_archive_comment()
     test_get_file_comment()
+    test_set_file_comment()
+end
+
+function test_set_file_comment()
+    local ar = assert(zip.open("test_set_file_comment.zip",
+                                zip.OR(zip.CREATE, zip.EXCL)));
+
+    local err = select(2, pcall(ar.set_file_comment, ar, 1,
+                                "test\0fun"))
+
+    -- TODO: Add better testing once we can 'add' archive entries.
+    ok(err == "Invalid argument", tostring(err) .. " == 'Invalid argument'")
+
+    ar:close()
 end
 
 function test_get_file_comment()

@@ -204,14 +204,14 @@ local comment = zip_arc:get_file_comment(file_idx [, flags])
         zip.FL_UNCHANGED
             See zip_arc:open().
 
-######################################################################
-TODO: The following functions are not implemented yet:
-######################################################################
-
-zip_arc:set_file_comment(filename | file_idx, comment)
+zip_arc:set_file_comment(file_idx, comment)
 
     Set the comment for a specified filename or file index within the
     archive.  Throws an error if input is invalid.
+
+######################################################################
+TODO: The following functions are not implemented yet:
+######################################################################
 
 zip_source = zip_arc:source_function(source_obj)
 
