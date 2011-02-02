@@ -23,6 +23,23 @@ function main()
     test_stat()
     test_get_name()
     test_get_archive_comment()
+    test_set_archive_comment()
+end
+
+function test_set_archive_comment()
+    local ar = assert(zip.open("test_set_archive_comment.zip",
+                                zip.OR(zip.CREATE, zip.EXCL)));
+
+
+    ar:set_archive_comment("test\0fun")
+
+    ok(nil == ar:get_archive_comment(zip.FL_UNCHANGED),
+       "zip.FL_UNCHANGED works")
+
+    ok("test\0fun" == ar:get_archive_comment(),
+       tostring(ar:get_archive_comment()) .. " == 'test<null>fun'")
+
+    ar:close()
 end
 
 function test_get_archive_comment()

@@ -191,14 +191,14 @@ local comment = zip_arc:get_archive_comment([flags])
         zip.FL_UNCHANGED
             See zip_arc:open().
 
-######################################################################
-TODO: The following functions are not implemented yet:
-######################################################################
-
 zip_arc:set_archive_comment(comment)
 
     Sets the comment of an archive.  May throw an error if the comment
     exceeds 65,535 bytes.
+
+######################################################################
+TODO: The following functions are not implemented yet:
+######################################################################
 
 local comment = zip_arc:get_file_comment(filename | file_idx [, flags])
 
