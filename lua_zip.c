@@ -240,6 +240,25 @@ static int S_archive_get_name(lua_State* L) {
     return 1;
 }
 
+static int S_archive_get_archive_comment(lua_State* L) {
+    struct zip** ar        = check_archive(L, 1);
+    int          flags     = (lua_gettop(L) < 2)  ? 0    : luaL_checkint(L, 2);
+    const char*  comment;
+    int          comment_len;
+
+    if ( ! *ar ) return 0;
+
+    comment = zip_get_archive_comment(*ar, &comment_len, flags);
+
+    if ( NULL == comment ) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    lua_pushlstring(L, comment, comment_len);
+    return 1;
+}
+
 static int S_archive_file_open(lua_State* L) {
     struct zip** ar        = check_archive(L, 1);
     const char*  path      = (lua_isnumber(L, 2)) ? NULL : luaL_checkstring(L, 2);
@@ -354,6 +373,9 @@ static void S_register_archive(lua_State* L) {
 
     lua_pushcfunction(L, S_archive_get_name);
     lua_setfield(L, -2, "get_name");
+
+    lua_pushcfunction(L, S_archive_get_archive_comment);
+    lua_setfield(L, -2, "get_archive_comment");
 
     lua_pop(L, 1);
 }

@@ -183,10 +183,6 @@ local filename = zip_arc:get_name(file_idx [, flags])
         zip.FL_UNCHANGED
             See zip_arc:open().
 
-######################################################################
-TODO: The following functions are not implemented yet:
-######################################################################
-
 local comment = zip_arc:get_archive_comment([flags])
 
     Return any comment contained in the archive.  The only valid flag
@@ -194,6 +190,10 @@ local comment = zip_arc:get_archive_comment([flags])
 
         zip.FL_UNCHANGED
             See zip_arc:open().
+
+######################################################################
+TODO: The following functions are not implemented yet:
+######################################################################
 
 zip_arc:set_archive_comment(comment)
 

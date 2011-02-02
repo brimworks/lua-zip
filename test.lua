@@ -22,6 +22,17 @@ function main()
     test_read_file()
     test_stat()
     test_get_name()
+    test_get_archive_comment()
+end
+
+function test_get_archive_comment()
+    local ar = assert(zip.open(test_zip))
+
+    local comment = ar:get_archive_comment(zip.FL_UNCHANGED);
+
+    ok(nil == comment, "No comment is set.  TODO: test w/ real comment")
+
+    ar:close()
 end
 
 function test_get_name()
