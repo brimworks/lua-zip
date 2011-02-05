@@ -209,51 +209,59 @@ zip_arc:set_file_comment(file_idx, comment)
     Set the comment for a specified filename or file index within the
     archive.  Throws an error if input is invalid.
 
+file_idx = zip_arc:add(filename, ...zip_source)
+
+    Adds the specified filename to the archive from the specified
+    "...zip_source" (see below).
+
+    If an error occurs, throws an error.
+
+file_idx = zip_arc:replace(file_idx, ...zip_source)
+
+    Replaces the specified file index with a new "...zip_source"
+    (see below).
+
+    If an error occurs, throws an error.
+
+..zip_source = "string", str
+
+    The source to use will come from the specified string.
+
 ######################################################################
 TODO: The following functions are not implemented yet:
 ######################################################################
 
-zip_source = zip_arc:source_function(source_obj)
+...zip_source: object=obj,
 
-    Create a "zip_source" by passing in a source_obj with the
-    following methods:
+    The "...zip_source" is an object with any of these methods:
 
-        success = source_obj:open()
+        success = obj:open()
             Prepare for reading. Return true on success, nil on
             error.
 
-        str = source_obj:read(len)
+        str = obj:read(len)
             Read len bytes, returning it as a string.  Return nil on
             error.
 
-        source_obj:close()
+        obj:close()
             Reading is done.
 
-        stat = source_obj:stat()
+        stat = obj:stat()
             Get meta information for the input data.  See
             zip_arc:stat() for the table of fields that may be set.
             Usually, for uncompressed data, only the mtime and size
             fields will need to be set.
 
-        libzip_err, system_err = source_obj:error()
+        libzip_err, system_err = obj:error()
             Get error information.  Must return two integers whic
             correspond to the libzip error code and system error code
             for any error (see above functions that may cause errors)
 
-    If an error occurs, nil plus an error message is returned.
+...zip_source = "zip", other_zip_arc, file_idx[, flags[, start[, len]]])
 
-zip_source = zip_arc:source_buffer(str)
-
-    Create a "zip_source" from an arbitrary string.
-
-    If an error occurs, nil plus an error message is returned.
-
-zip_source = zip_arc:source_zip(other_zip_arc, file_idx[, flags[, start[, len]]])
-
-    Create a "zip_source" from another zip archive.  other_zip_arc is
-    the other zip archive object for which we want to copy the file at
-    file_idx.  Only contents starting at 'start' and going to length
-    'len' will be copied.  Flays are an optional bitwise or of:
+    The "...zip_source" is an archive and file index into that archive
+    along with an optional flag, start file offset and length.  The
+    flags are an optional bitwise or of:
 
         zip.FL_UNCHANGED
             See zip_arc:open().
@@ -265,23 +273,11 @@ zip_source = zip_arc:source_zip(other_zip_arc, file_idx[, flags[, start[, len]]]
 
     If an error occurs, nil plus an error message is returned.
 
-zip_source = zip_arc:source_file(filename[, start[, len]])
+...zip_source = "file", filename[, start[, len]]
 
     Create a "zip_source" from a file on disk.  Opens filename and
     reads len bytes from offset start from it. If len is 0 or -1, the
     whole file (starting from start) is used.
-
-zip_arc:replace(filename | file_idx, zip_source)
-
-    Replaces the specified file or file index with a new zip source
-    (see above).
-
-zip_arc:add(filename, zip_source)
-
-    Adds the specified filename to the archive from the specified
-    "zip_source" (see above).
-
-    If an error occurs, throws an error.
 
 zip_arc:add_dir(dirname)
 

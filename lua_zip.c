@@ -3,10 +3,11 @@
 #include <zip.h>
 #include <assert.h>
 #include <errno.h>
+#include <string.h>
 
-#define ARCHIVE_MT "zip{archive}"
+#define ARCHIVE_MT      "zip{archive}"
 #define ARCHIVE_FILE_MT "zip{archive.file}"
-#define WEAK_MT "zip{weak}"
+#define WEAK_MT         "zip{weak}"
 
 #define check_archive(L, narg)                                   \
     ((struct zip**)luaL_checkudata((L), (narg), ARCHIVE_MT))
@@ -15,6 +16,32 @@
     ((struct zip_file**)luaL_checkudata((L), (narg), ARCHIVE_FILE_MT))
 
 #define absindex(L,i) ((i)>0?(i):lua_gettop(L)+(i)+1)
+
+static void stackdump(lua_State* l)
+{
+    int i;
+    int top = lua_gettop(l);
+
+    for (i = 1; i <= top; i++)
+    {  /* repeat for each level */
+        int t = lua_type(l, i);
+        switch (t) {
+        case LUA_TSTRING:  /* strings */
+            fprintf(stderr, "\tstring: '%s'\n", lua_tostring(l, i));
+            break;
+        case LUA_TBOOLEAN:  /* booleans */
+            fprintf(stderr, "\tboolean %s\n",lua_toboolean(l, i) ? "true" : "false");
+            break;
+        case LUA_TNUMBER:  /* numbers */
+            fprintf(stderr, "\tnumber: %g\n", lua_tonumber(l, i));
+            break;
+        default:  /* other values */
+            fprintf(stderr, "\t%s\n", lua_typename(l, t));
+            break;
+        }
+    }
+}
+
 
 /* If zip_error is non-zero, then push an appropriate error message
  * onto the top of the Lua stack and return zip_error.  Otherwise,
@@ -66,10 +93,9 @@ static int S_archive_open(lua_State* L) {
     return 1;
 }
 
-/* Iterate over the fenv of ar_idx and call the __gc metamethod to
- * assert that these objects are invalidated.  This functionality is
- * necessary since the lifetime of these "child" objects is dependent
- * on the archive "parent" object still existing.
+/* Invalidate all "weak" references.  This should be done just before
+ * zip_close() is called.  Invalidation occurs by calling __gc
+ * metamethod.
  */
 static void S_archive_gc_refs(lua_State* L, int ar_idx) {
     lua_getfenv(L, ar_idx);
@@ -87,16 +113,29 @@ static void S_archive_gc_refs(lua_State* L, int ar_idx) {
 }
 
 /* Adds a reference from the archive at ar_idx to the object at
- * obj_idx.  Adding this reference
+ * obj_idx.  This reference will be a "weak" reference if is_weak is
+ * true, otherwise it will be a normal reference that prevents the
+ * value from being GC'ed.
+ *
+ * We need to keep these references around so we can assert that the
+ * lifetime of "child" objects is always shorter than the lifetime of
+ * the "parent" archive object.  We also need to assert that any zip
+ * source has a lifetime that lasts at least until the zip_close()
+ * function is called.
  */
-static void S_archive_add_ref(lua_State* L, int ar_idx, int obj_idx) {
+static void S_archive_add_ref(lua_State* L, int is_weak, int ar_idx, int obj_idx) {
     obj_idx = absindex(L, obj_idx);
     lua_getfenv(L, ar_idx);
     assert(lua_istable(L, -1) /* fenv of archive must exist! */);
 
-    lua_pushvalue(L, obj_idx);
-    lua_pushboolean(L, 1);
-    lua_settable(L, -3);
+    if ( is_weak ) {
+        lua_pushvalue(L, obj_idx);
+        lua_pushboolean(L, 1);
+        lua_rawset(L, -3);
+    } else {
+        lua_pushvalue(L, obj_idx);
+        lua_rawseti(L, -2, lua_objlen(L, -1)+1);
+    }
 
     lua_pop(L, 1); /* Pop the fenv */
 }
@@ -116,7 +155,6 @@ static int S_archive_close(lua_State* L) {
     *ar = NULL;
 
     if ( S_push_error(L, err, errno) ) lua_error(L);
-
 
     return 0;
 }
@@ -308,6 +346,77 @@ static int S_archive_set_file_comment(lua_State* L) {
     return 0;
 }
 
+static struct zip_source* S_create_source_string(lua_State* L, struct zip* ar) {
+    size_t      len;
+    const char* str = luaL_checklstring(L, 4, &len);
+    struct zip_source* src = zip_source_buffer(ar, str, len, 0);
+
+    if ( NULL != src ) return src;
+
+    lua_pushstring(L, zip_strerror(ar));
+    lua_error(L);
+}
+
+typedef struct zip_source* (S_src_t)(lua_State*, struct zip*);
+
+/* Dispatch to the proper function based on the type string.
+ */
+static struct zip_source* S_create_source(lua_State* L, struct zip* ar) {
+    static const char* types[] = {
+        "string",
+    };
+    static S_src_t* fns[] = {
+        &S_create_source_string,
+    };
+    if ( NULL == ar ) return NULL;
+    return fns[luaL_checkoption(L, 3, NULL, types)](L, ar);
+}
+
+static int S_archive_replace(lua_State* L) {
+    struct zip**        ar   = check_archive(L, 1);
+    int                 idx  = luaL_checkinteger(L, 2);
+    struct zip_source*  src  = S_create_source(L, *ar);
+
+    if ( ! *ar ) return 0;
+
+    idx = zip_replace(*ar, idx-1, src) + 1;
+
+    if ( 0 == idx ) {
+        zip_source_free(src);
+        lua_pushstring(L, zip_strerror(*ar));
+        lua_error(L);
+    }
+
+    S_archive_add_ref(L, 0, 1, 4);
+
+    lua_pushinteger(L, idx);
+
+    return 1;
+}
+
+static int S_archive_add(lua_State* L) {
+    struct zip**        ar   = check_archive(L, 1);
+    const char*         path = luaL_checkstring(L, 2);
+    struct zip_source*  src  = S_create_source(L, *ar);
+    int                 idx;
+
+    if ( ! *ar ) return 0;
+
+    idx = zip_add(*ar, path, src) + 1;
+
+    if ( 0 == idx ) {
+        zip_source_free(src);
+        lua_pushstring(L, zip_strerror(*ar));
+        lua_error(L);
+    }
+
+    S_archive_add_ref(L, 0, 1, 4);
+
+    lua_pushinteger(L, idx);
+
+    return 1;
+}
+
 static int S_archive_file_open(lua_State* L) {
     struct zip** ar        = check_archive(L, 1);
     const char*  path      = (lua_isnumber(L, 2)) ? NULL : luaL_checkstring(L, 2);
@@ -337,7 +446,7 @@ static int S_archive_file_open(lua_State* L) {
 
     lua_setmetatable(L, -2);
 
-    S_archive_add_ref(L, 1, -1);
+    S_archive_add_ref(L, 1, 1, -1);
 
     return 1;
 }
@@ -434,6 +543,12 @@ static void S_register_archive(lua_State* L) {
 
     lua_pushcfunction(L, S_archive_set_file_comment);
     lua_setfield(L, -2, "set_file_comment");
+
+    lua_pushcfunction(L, S_archive_add);
+    lua_setfield(L, -2, "add");
+
+    lua_pushcfunction(L, S_archive_replace);
+    lua_setfield(L, -2, "replace");
 
     lua_pop(L, 1);
 }

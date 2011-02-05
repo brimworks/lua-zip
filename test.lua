@@ -26,6 +26,55 @@ function main()
     test_set_archive_comment()
     test_get_file_comment()
     test_set_file_comment()
+    test_add()
+    test_replace()
+end
+
+function test_replace()
+    -- Make sure we start with a clean slate:
+    local test_replace_file = string.gsub(_0, "(.*/)(.*)", "%1") .. "test_replace.zip"
+    os.execute("rm -f " .. test_replace_file)
+    local ar = assert(zip.open(test_replace_file,
+                                zip.OR(zip.CREATE, zip.EXCL)));
+
+    local idx = ar:add("dir/test.txt", "string", "Contents")
+    ar:replace(idx, "string", "Replacement")
+
+    ar:close()
+
+    local ar = assert(zip.open(test_replace_file, zip.CHECKCONS))
+    ok(1 == #ar, "Archive contains one entry: " .. #ar)
+
+    local file =
+        assert(ar:open("test.TXT",
+                       zip.OR(zip.FL_NOCASE, zip.FL_NODIR)))
+    local str = assert(file:read(256))
+    ok(str == "Replacement", tostring(str) .. " == 'Replacement'")
+end
+
+function test_add()
+    -- Make sure we start with a clean slate:
+    local test_add_file = string.gsub(_0, "(.*/)(.*)", "%1") .. "test_add.zip"
+
+    os.execute("rm -f " .. test_add_file)
+    local ar = assert(zip.open(test_add_file,
+                                zip.OR(zip.CREATE, zip.EXCL)));
+
+    ar:add("dir/add.txt", "string", "Contents")
+
+    ar:close()
+
+    local ar = assert(zip.open(test_add_file, zip.CHECKCONS))
+    ok(1 == #ar, "Archive contains one entry: " .. #ar)
+
+    local file =
+        assert(ar:open("add.TXT",
+                       zip.OR(zip.FL_NOCASE, zip.FL_NODIR)))
+    local str = assert(file:read(256))
+    ok(str == "Contents", str .. " == 'Contents'")
+
+    file:close()
+    ar:close()
 end
 
 function test_set_file_comment()
