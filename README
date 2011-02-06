@@ -227,11 +227,33 @@ file_idx = zip_arc:replace(file_idx, ...zip_source)
 
     The source to use will come from the specified string.
 
+...zip_source = "zip", other_zip_arc, file_idx[, flags[, start[, len]]])
+
+    The "...zip_source" is an archive and file index into that archive
+    along with an optional flag, start file offset and length.  The
+    flags are an optional bitwise or of:
+
+        zip.FL_UNCHANGED
+            See zip_arc:open().
+
+        zip.FL_RECOMPRESS
+            When adding the data from srcarchive, re-compress it using
+            the current settings instead of copying the compressed
+            data.
+
+    If an error occurs, nil plus an error message is returned.
+
+...zip_source = "file", filename[, start[, len]]
+
+    Create a "zip_source" from a file on disk.  Opens filename and
+    reads len bytes from offset start from it. If len is 0 or -1, the
+    whole file (starting from start) is used.
+
 ######################################################################
 TODO: The following functions are not implemented yet:
 ######################################################################
 
-...zip_source: object=obj,
+...zip_source = "object", obj
 
     The "...zip_source" is an object with any of these methods:
 
@@ -256,28 +278,6 @@ TODO: The following functions are not implemented yet:
             Get error information.  Must return two integers whic
             correspond to the libzip error code and system error code
             for any error (see above functions that may cause errors)
-
-...zip_source = "zip", other_zip_arc, file_idx[, flags[, start[, len]]])
-
-    The "...zip_source" is an archive and file index into that archive
-    along with an optional flag, start file offset and length.  The
-    flags are an optional bitwise or of:
-
-        zip.FL_UNCHANGED
-            See zip_arc:open().
-
-        zip.FL_RECOMPRESS
-            When adding the data from srcarchive, re-compress it using
-            the current settings instead of copying the compressed
-            data.
-
-    If an error occurs, nil plus an error message is returned.
-
-...zip_source = "file", filename[, start[, len]]
-
-    Create a "zip_source" from a file on disk.  Opens filename and
-    reads len bytes from offset start from it. If len is 0 or -1, the
-    whole file (starting from start) is used.
 
 zip_arc:add_dir(dirname)
 

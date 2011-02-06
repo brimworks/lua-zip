@@ -28,6 +28,39 @@ function main()
     test_set_file_comment()
     test_add()
     test_replace()
+    test_zip_source()
+end
+
+function test_zip_source()
+    local test_zip_source = string.gsub(_0, "(.*/)(.*)", "%1") .. "test_zip_source.zip"
+
+    os.execute("rm -f " .. test_zip_source)
+
+    local ar_ro = assert(zip.open(test_zip))
+
+    local ar = assert(zip.open(test_zip_source, 
+                                zip.OR(zip.CREATE, zip.EXCL)));
+
+    ar:add("dir/add.txt", "zip", ar_ro, 2,
+           zip.OR(zip.FL_UNCHANGED,
+                  zip.FL_RECOMPRESS),
+           4, 3)
+
+    ar:close()
+
+    ar_ro:close()
+
+    local ar = assert(zip.open(test_zip_source, zip.CHECKCONS))
+    ok(1 == #ar, "Archive contains one entry: " .. #ar)
+
+    local file =
+        assert(ar:open("add.TXT",
+                       zip.OR(zip.FL_NOCASE, zip.FL_NODIR)))
+    local str = assert(file:read(256))
+    ok(str == "two", str .. " == 'two'")
+
+    file:close()
+    ar:close()
 end
 
 function test_replace()
@@ -50,6 +83,9 @@ function test_replace()
                        zip.OR(zip.FL_NOCASE, zip.FL_NODIR)))
     local str = assert(file:read(256))
     ok(str == "Replacement", tostring(str) .. " == 'Replacement'")
+
+    file:close()
+    ar:close()
 end
 
 function test_add()

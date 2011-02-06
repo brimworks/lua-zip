@@ -347,10 +347,27 @@ static int S_archive_set_file_comment(lua_State* L) {
 }
 
 static struct zip_source* S_create_source_string(lua_State* L, struct zip* ar) {
-    size_t      len;
-    const char* str = luaL_checklstring(L, 4, &len);
+    size_t             len;
+    const char*        str = luaL_checklstring(L, 4, &len);
     struct zip_source* src = zip_source_buffer(ar, str, len, 0);
 
+    if ( NULL != src ) return src;
+
+    lua_pushstring(L, zip_strerror(ar));
+    lua_error(L);
+}
+
+static struct zip_source* S_create_source_zip(lua_State* L, struct zip* ar) {
+    struct zip**       other_ar = check_archive(L, 4);
+    int                file_idx = luaL_checkint(L, 5);
+    int                flags    = lua_gettop(L) < 6 ? 0  : luaL_checkint(L, 6);
+    int                start    = lua_gettop(L) < 7 ? 0  : luaL_checkint(L, 7);
+    int                len      = lua_gettop(L) < 8 ? -1 : luaL_checkint(L, 8);
+    struct zip_source* src      = NULL;
+
+    if ( ! *other_ar ) return;
+
+    src = zip_source_zip(ar, *other_ar, file_idx-1, flags, start, len);
     if ( NULL != src ) return src;
 
     lua_pushstring(L, zip_strerror(ar));
@@ -364,9 +381,11 @@ typedef struct zip_source* (S_src_t)(lua_State*, struct zip*);
 static struct zip_source* S_create_source(lua_State* L, struct zip* ar) {
     static const char* types[] = {
         "string",
+        "zip",
     };
     static S_src_t* fns[] = {
         &S_create_source_string,
+        &S_create_source_zip,
     };
     if ( NULL == ar ) return NULL;
     return fns[luaL_checkoption(L, 3, NULL, types)](L, ar);
@@ -614,6 +633,7 @@ LUALIB_API int luaopen_zip(lua_State* L) {
     EXPORT_CONSTANT(FL_NODIR);
     EXPORT_CONSTANT(FL_COMPRESSED);
     EXPORT_CONSTANT(FL_UNCHANGED);
+    EXPORT_CONSTANT(FL_RECOMPRESS);
 
     S_register_archive(L);
     S_register_archive_file(L);
