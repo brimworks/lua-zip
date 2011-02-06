@@ -346,6 +346,27 @@ static int S_archive_set_file_comment(lua_State* L) {
     return 0;
 }
 
+static int S_archive_add_dir(lua_State* L) {
+    struct zip**        ar   = check_archive(L, 1);
+    const char*         path = luaL_checkstring(L, 2);
+    int                 idx;
+
+    if ( ! *ar ) return 0;
+
+
+    idx = zip_add_dir(*ar, path) + 1;
+
+    if ( 0 == idx ) {
+        lua_pushstring(L, zip_strerror(*ar));
+        lua_error(L);
+        return 0;
+    }
+
+    lua_pushinteger(L, idx);
+
+    return 1;
+}
+
 static struct zip_source* S_create_source_string(lua_State* L, struct zip* ar) {
     size_t             len;
     const char*        str = luaL_checklstring(L, 4, &len);
@@ -576,6 +597,9 @@ static void S_register_archive(lua_State* L) {
 
     lua_pushcfunction(L, S_archive_set_file_comment);
     lua_setfield(L, -2, "set_file_comment");
+
+    lua_pushcfunction(L, S_archive_add_dir);
+    lua_setfield(L, -2, "add_dir");
 
     lua_pushcfunction(L, S_archive_add);
     lua_setfield(L, -2, "add");

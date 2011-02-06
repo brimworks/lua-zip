@@ -57,7 +57,7 @@ zip.CHECKCONS
     Numbers that represent open "flags", see zip.open().
 
 zip.FL_NOCASE
-zip.FL_FL_NODIR
+zip.FL_NODIR
 
     Numbers that represent locate "flags", see zip_arc:name_locate().
 
@@ -117,7 +117,7 @@ local file_idx = zip_arc:name_locate(filename [, flags])
         zip.FL_NOCASE
             Ignore case distinctions.
 
-        zip.FL_FL_NODIR
+        zip.FL_NODIR
             Ignore directory part of file name in archive.
 
     If it is not found, it returns nil plus an error message.
@@ -136,7 +136,7 @@ local file = zip_arc:open(filename | file_idx [, flags])
             changes made to the file.
 
         zip.FL_NOCASE
-        zip.FL_FL_NODIR
+        zip.FL_NODIR
             See zip_arc:name_locate().
 
     Note that this file handle can only be used for reading purposes.
@@ -158,7 +158,7 @@ local stat = zip_arc:stat(filename | file_idx [, flags])
             See zip_arc:open().
 
         zip.FL_NOCASE
-        zip.FL_FL_NODIR
+        zip.FL_NODIR
             See zip_arc:name_locate().
 
     The returned stat table contains the following fields:
@@ -206,8 +206,14 @@ local comment = zip_arc:get_file_comment(file_idx [, flags])
 
 zip_arc:set_file_comment(file_idx, comment)
 
-    Set the comment for a specified filename or file index within the
-    archive.  Throws an error if input is invalid.
+    Set the comment for a specified file index within the archive.
+    Throws an error if input is invalid.
+
+zip_arc:add_dir(dirname)
+
+    Creates a new directory within the archive.  May throw an error if
+    an entry already exists in the archive with that name or input is
+    invalid.
 
 file_idx = zip_arc:add(filename, ...zip_source)
 
@@ -278,12 +284,6 @@ TODO: The following functions are not implemented yet:
             Get error information.  Must return two integers whic
             correspond to the libzip error code and system error code
             for any error (see above functions that may cause errors)
-
-zip_arc:add_dir(dirname)
-
-    Creates a new directory within the archive.  May throw an error if
-    an entry already exists in the archive with that name or input is
-    invalid.
 
 zip_arc:rename(filename | file_idx, new_filename)
 

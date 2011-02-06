@@ -26,6 +26,7 @@ function main()
     test_set_archive_comment()
     test_get_file_comment()
     test_set_file_comment()
+    test_add_dir()
     test_add()
     test_replace()
     test_zip_source()
@@ -135,6 +136,30 @@ function test_add()
     ok(str == "Contents", str .. " == 'Contents'")
 
     file:close()
+    ar:close()
+end
+
+function test_add_dir()
+    -- Make sure we start with a clean slate:
+    local test_add_dir = string.gsub(_0, "(.*/)(.*)", "%1") .. "test_add_dir.zip"
+
+    os.execute("rm -f " .. test_add_dir)
+    local ar = assert(zip.open(test_add_dir,
+                                zip.OR(zip.CREATE, zip.EXCL)));
+
+    ok(1 == ar:add_dir("arbitary/directory/name"), "add_dir returns 1")
+
+    ar:close()
+
+    local ar = assert(zip.open(test_add_dir, zip.CHECKCONS))
+    ok(1 == #ar, "Archive contains one entry: " .. #ar)
+
+    -- "/" is always appended to the directory name
+    ok(1 == ar:name_locate("arbitary/directory/name/"), "dir exists")
+    ok(nil == ar:name_locate("arbitary/directory/name/",
+                                  zip.FL_NODIR),
+       "name_locate returns nil if FL_NODIR flag is passed")
+
     ar:close()
 end
 
