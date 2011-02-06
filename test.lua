@@ -29,6 +29,31 @@ function main()
     test_add()
     test_replace()
     test_zip_source()
+    test_file_source()
+end
+
+function test_file_source()
+    local test_file_source = string.gsub(_0, "(.*/)(.*)", "%1") .. "test_file_source.zip"
+
+    os.execute("rm -f " .. test_file_source)
+
+    local ar = assert(zip.open(test_file_source, 
+                                zip.OR(zip.CREATE, zip.EXCL)));
+
+    ar:add("dir/add.txt", "file", _0, 2, 12)
+    ar:close()
+
+    local ar = assert(zip.open(test_file_source, zip.CHECKCONS))
+    ok(1 == #ar, "Archive contains one entry: " .. #ar)
+
+    local file =
+        assert(ar:open("add.TXT",
+                       zip.OR(zip.FL_NOCASE, zip.FL_NODIR)))
+    local str = assert(file:read(256))
+    ok(str == "/usr/bin/env", str .. " == '/usr/bin/env'")
+
+    file:close()
+    ar:close()
 end
 
 function test_zip_source()

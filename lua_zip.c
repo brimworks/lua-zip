@@ -357,6 +357,18 @@ static struct zip_source* S_create_source_string(lua_State* L, struct zip* ar) {
     lua_error(L);
 }
 
+static struct zip_source* S_create_source_file(lua_State* L, struct zip* ar) {
+    const char*        fname = luaL_checkstring(L, 4);
+    int                start = lua_gettop(L) < 5 ? 0  : luaL_checkint(L, 5);
+    int                len   = lua_gettop(L) < 6 ? -1 : luaL_checkint(L, 6);
+    struct zip_source* src   = zip_source_file(ar, fname, start, len);
+
+    if ( NULL != src ) return src;
+
+    lua_pushstring(L, zip_strerror(ar));
+    lua_error(L);
+}
+
 static struct zip_source* S_create_source_zip(lua_State* L, struct zip* ar) {
     struct zip**       other_ar = check_archive(L, 4);
     int                file_idx = luaL_checkint(L, 5);
@@ -380,10 +392,12 @@ typedef struct zip_source* (S_src_t)(lua_State*, struct zip*);
  */
 static struct zip_source* S_create_source(lua_State* L, struct zip* ar) {
     static const char* types[] = {
+        "file",
         "string",
         "zip",
     };
     static S_src_t* fns[] = {
+        &S_create_source_file,
         &S_create_source_string,
         &S_create_source_zip,
     };
