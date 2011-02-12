@@ -16,6 +16,9 @@ local ok  = tap.ok
 local is_deeply = tap.is_deeply
 
 function main()
+    test_zip_source_gc()
+
+
     test_open_close()
     test_file_count()
     test_name_locate()
@@ -55,6 +58,34 @@ function test_file_source()
 
     file:close()
     ar:close()
+end
+
+function test_zip_source_gc()
+    -- What appens if two archives try to reference each other?  Let's
+    -- just make sure it doesn't crash.
+    local test_zip_source1 = string.gsub(_0, "(.*/)(.*)", "%1") .. "test_zip_source1_gc.zip"
+    local test_zip_source2 = string.gsub(_0, "(.*/)(.*)", "%1") .. "test_zip_source2_gc.zip"
+
+    os.execute("rm -f " .. test_zip_source1)
+    os.execute("rm -f " .. test_zip_source2)
+
+    local ar1 = assert(zip.open(test_zip_source1, 
+                                zip.OR(zip.CREATE, zip.EXCL)));
+    local ar2 = assert(zip.open(test_zip_source2, 
+                                zip.OR(zip.CREATE, zip.EXCL)));
+
+    assert(ar1:add("file.txt", "string", "AR1"))
+    assert(ar2:add("file.txt", "string", "AR2"))
+    ar1:close()
+    ar2:close()
+
+    local ar1 = assert(zip.open(test_zip_source1))
+    local ar2 = assert(zip.open(test_zip_source2))
+
+    assert(ar1:add("other.txt", "zip", ar2, 1))
+    assert(ar2:add("other.txt", "zip", ar1, 1))
+    local isok, err = pcall(ar1.close, ar1)
+    ok(not isok, "Circular reference is error when closed: " .. err)
 end
 
 function test_zip_source()

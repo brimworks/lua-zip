@@ -101,8 +101,15 @@ static void S_archive_gc_refs(lua_State* L, int ar_idx) {
     lua_getfenv(L, ar_idx);
     assert(lua_istable(L, -1) /* fenv of archive must exist! */);
 
+    /* NULL this archive to prevent infinite recursion
+     */
+    *((struct zip**)lua_touserdata(L, ar_idx)) = NULL;
+
     lua_pushnil(L);
     while ( lua_next(L, -2) != 0 ) {
+        /* TODO: Exceptions when calling __gc meta method should be
+         * handled, otherwise we get a memory leak.
+         */
         if ( luaL_callmeta(L, -2, "__gc") ) {
             lua_pop(L, 2);
         } else {
@@ -134,7 +141,7 @@ static void S_archive_add_ref(lua_State* L, int is_weak, int ar_idx, int obj_idx
         lua_rawset(L, -3);
     } else {
         lua_pushvalue(L, obj_idx);
-        lua_rawseti(L, -2, lua_objlen(L, -1)+1);
+        lua_rawseti(L, -2, lua_objlen(L, -2)+1);
     }
 
     lua_pop(L, 1); /* Pop the fenv */
@@ -144,15 +151,14 @@ static void S_archive_add_ref(lua_State* L, int is_weak, int ar_idx, int obj_idx
  * problems.
  */
 static int S_archive_close(lua_State* L) {
-    struct zip** ar  = check_archive(L, 1);
+    struct zip*  ar  = *check_archive(L, 1);
     int          err;
 
-    if ( ! *ar ) return 0;
+    if ( ! ar ) return 0;
 
     S_archive_gc_refs(L, 1);
 
-    err = zip_close(*ar);
-    *ar = NULL;
+    err = zip_close(ar);
 
     if ( S_push_error(L, err, errno) ) lua_error(L);
 
@@ -163,16 +169,14 @@ static int S_archive_close(lua_State* L) {
  * was not explicitly closed.
  */
 static int S_archive_gc(lua_State* L) {
-    struct zip** ar = check_archive(L, 1);
+    struct zip* ar = *check_archive(L, 1);
 
-    if ( ! *ar ) return 0;
+    if ( ! ar ) return 0;
 
     S_archive_gc_refs(L, 1);
 
-    zip_unchange_all(*ar);
-    zip_close(*ar);
-
-    *ar = NULL;
+    zip_unchange_all(ar);
+    zip_close(ar);
 
     return 0;
 }
@@ -374,6 +378,8 @@ static struct zip_source* S_create_source_string(lua_State* L, struct zip* ar) {
 
     if ( NULL != src ) return src;
 
+    S_archive_add_ref(L, 0, 1, 4);
+
     lua_pushstring(L, zip_strerror(ar));
     lua_error(L);
 }
@@ -399,6 +405,14 @@ static struct zip_source* S_create_source_zip(lua_State* L, struct zip* ar) {
     struct zip_source* src      = NULL;
 
     if ( ! *other_ar ) return;
+
+    /* We store a strong reference to prevent the "other" archive
+     * from getting prematurely gc'ed, we also have the other archive
+     * store a weak reference so the __gc metamethod will be called
+     * if the "other" archive is closed before we are closed.
+     */
+    S_archive_add_ref(L, 0, 1, 4);
+    S_archive_add_ref(L, 1, 4, 1);
 
     src = zip_source_zip(ar, *other_ar, file_idx-1, flags, start, len);
     if ( NULL != src ) return src;
