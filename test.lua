@@ -1,24 +1,43 @@
 #!/usr/bin/env lua
 
-local build_dir = ...
-if ( build_dir ) then
-    package.cpath = build_dir .. "?.so;" .. package.cpath
+-- Global symbols:
+local _0 = string.sub(debug.getinfo(1,'S').source, 2)
+local tap
+local zip
+local ok
+local is_deeply
+local test_zip_file
+local tmp_dir
+
+function load_libs(build_dir)
+    -- Set-up cpath and path properly:
+    build_dir = build_dir:gsub("(.*)/*", "%1")
+    local f=io.open(build_dir .. "/brimworks/zip.so", "r")
+    if ( f ) then
+        f:close()
+        package.cpath = build_dir .. "/?.so;" .. package.cpath
+    end
+
+    package.path = _0:gsub("(.*/)(.*)", "%1?.lua;") .. package.path
+
+    -- Load libraries:
+    tap = require("tap")
+    zip = require("brimworks.zip")
+    ok  = tap.ok
+    is_deeply = tap.is_deeply
+
+    -- Export some globals:
+    test_zip_file = string.gsub(_0, "(.*/)(.*)", "%1test.zip")
+    tmp_dir = build_dir .. "/test-tmp/"
+    os.execute("mkdir -p " .. tmp_dir)
 end
 
-local _0 = string.sub(debug.getinfo(1,'S').source, 2)
-package.path = string.gsub(_0, "(.*/)(.*)", "%1?.lua;") .. package.path
+load_libs(...)
 
-local test_zip = string.gsub(_0, "(.*/)(.*)", "%1test.zip")
 
-local tap = require("tap")
-local zip = require("zip")
-local ok  = tap.ok
-local is_deeply = tap.is_deeply
 
 function main()
-    test_zip_source_gc()
-
-
+    test_zip_source_circular()
     test_open_close()
     test_file_count()
     test_name_locate()
@@ -37,7 +56,7 @@ function main()
 end
 
 function test_file_source()
-    local test_file_source = string.gsub(_0, "(.*/)(.*)", "%1") .. "test_file_source.zip"
+    local test_file_source = tmp_dir .. "test_file_source.zip"
 
     os.execute("rm -f " .. test_file_source)
 
@@ -60,11 +79,11 @@ function test_file_source()
     ar:close()
 end
 
-function test_zip_source_gc()
+function test_zip_source_circular()
     -- What appens if two archives try to reference each other?  Let's
     -- just make sure it doesn't crash.
-    local test_zip_source1 = string.gsub(_0, "(.*/)(.*)", "%1") .. "test_zip_source1_gc.zip"
-    local test_zip_source2 = string.gsub(_0, "(.*/)(.*)", "%1") .. "test_zip_source2_gc.zip"
+    local test_zip_source1 = tmp_dir .. "test_zip_source1_gc.zip"
+    local test_zip_source2 = tmp_dir .. "test_zip_source2_gc.zip"
 
     os.execute("rm -f " .. test_zip_source1)
     os.execute("rm -f " .. test_zip_source2)
@@ -88,11 +107,11 @@ function test_zip_source_gc()
 end
 
 function test_zip_source()
-    local test_zip_source = string.gsub(_0, "(.*/)(.*)", "%1") .. "test_zip_source.zip"
+    local test_zip_source = tmp_dir .. "test_zip_source.zip"
 
     os.execute("rm -f " .. test_zip_source)
 
-    local ar_ro = assert(zip.open(test_zip))
+    local ar_ro = assert(zip.open(test_zip_file))
 
     local ar = assert(zip.open(test_zip_source, 
                                 zip.OR(zip.CREATE, zip.EXCL)));
@@ -121,7 +140,7 @@ end
 
 function test_replace()
     -- Make sure we start with a clean slate:
-    local test_replace_file = string.gsub(_0, "(.*/)(.*)", "%1") .. "test_replace.zip"
+    local test_replace_file = tmp_dir .. "test_replace.zip"
     os.execute("rm -f " .. test_replace_file)
     local ar = assert(zip.open(test_replace_file,
                                 zip.OR(zip.CREATE, zip.EXCL)));
@@ -146,7 +165,7 @@ end
 
 function test_add()
     -- Make sure we start with a clean slate:
-    local test_add_file = string.gsub(_0, "(.*/)(.*)", "%1") .. "test_add.zip"
+    local test_add_file = tmp_dir .. "test_add.zip"
 
     os.execute("rm -f " .. test_add_file)
     local ar = assert(zip.open(test_add_file,
@@ -171,7 +190,7 @@ end
 
 function test_add_dir()
     -- Make sure we start with a clean slate:
-    local test_add_dir = string.gsub(_0, "(.*/)(.*)", "%1") .. "test_add_dir.zip"
+    local test_add_dir = tmp_dir .. "test_add_dir.zip"
 
     os.execute("rm -f " .. test_add_dir)
     local ar = assert(zip.open(test_add_dir,
@@ -207,7 +226,7 @@ function test_set_file_comment()
 end
 
 function test_get_file_comment()
-    local ar = assert(zip.open(test_zip))
+    local ar = assert(zip.open(test_zip_file))
 
     local comment = ar:get_file_comment(2, zip.FL_UNCHANGED)
 
@@ -232,7 +251,7 @@ function test_set_archive_comment()
 end
 
 function test_get_archive_comment()
-    local ar = assert(zip.open(test_zip))
+    local ar = assert(zip.open(test_zip_file))
 
     local comment = ar:get_archive_comment(zip.FL_UNCHANGED);
 
@@ -242,7 +261,7 @@ function test_get_archive_comment()
 end
 
 function test_get_name()
-    local ar = assert(zip.open(test_zip))
+    local ar = assert(zip.open(test_zip_file))
 
     local name = ar:get_name(2, zip.FL_UNCHANGED);
 
@@ -252,7 +271,7 @@ function test_get_name()
 end
 
 function test_stat()
-    local ar = assert(zip.open(test_zip))
+    local ar = assert(zip.open(test_zip_file))
 
     local expect = {
         name = "test/text.txt",
@@ -279,7 +298,7 @@ function test_stat()
 end
 
 function test_read_file()
-    local ar = assert(zip.open(test_zip))
+    local ar = assert(zip.open(test_zip_file))
 
     local file =
         assert(ar:open("TEXT.TXT",
@@ -304,7 +323,7 @@ function test_read_file()
 end
 
 function test_name_locate()
-    local ar = assert(zip.open(test_zip))
+    local ar = assert(zip.open(test_zip_file))
 
     ok(2 == ar:name_locate("test/text.txt"),
        tostring(ar:name_locate("test/text.txt")) .. " == 2");
@@ -323,7 +342,7 @@ function test_name_locate()
 end
 
 function test_file_count()
-    local ar = assert(zip.open(test_zip))
+    local ar = assert(zip.open(test_zip_file))
     ok(2 == #ar, tostring(#ar) .. " == 2")
     ok(2 == ar:get_num_files(), tostring(ar:get_num_files()) .. " == 2")
     ar:close()
@@ -337,7 +356,7 @@ function test_open_close()
     ok(string.match(err, "No such file or directory"),
        tostring(err) .. " matches 'No such file or directory'")
 
-    ar = assert(zip.open(test_zip))
+    ar = assert(zip.open(test_zip_file))
     ar:close()
 
     do
