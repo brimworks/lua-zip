@@ -406,6 +406,15 @@ static struct zip_source* S_create_source_zip(lua_State* L, struct zip* ar) {
 
     if ( ! *other_ar ) return;
 
+    lua_getfenv(L, 1);
+    lua_pushvalue(L, 4);
+    lua_rawget(L, -2);
+    if ( ! lua_isnil(L, -1) ) {
+        lua_pushliteral(L, "Circular reference of zip sources is not allowed");
+        lua_error(L);
+    }
+    lua_pop(L, 1);
+
     /* We store a strong reference to prevent the "other" archive
      * from getting prematurely gc'ed, we also have the other archive
      * store a weak reference so the __gc metamethod will be called

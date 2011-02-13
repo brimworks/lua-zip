@@ -83,9 +83,8 @@ function test_zip_source_gc()
     local ar2 = assert(zip.open(test_zip_source2))
 
     assert(ar1:add("other.txt", "zip", ar2, 1))
-    assert(ar2:add("other.txt", "zip", ar1, 1))
-    local isok, err = pcall(ar1.close, ar1)
-    ok(not isok, "Circular reference is error when closed: " .. err)
+    local isok, err = pcall(ar2.add, ar2, "other.txt", "zip", ar1, 1)
+    ok(not isok, "Circular reference is error: " .. err)
 end
 
 function test_zip_source()

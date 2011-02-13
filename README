@@ -247,7 +247,13 @@ file_idx = zip_arc:replace(file_idx, ...zip_source)
             the current settings instead of copying the compressed
             data.
 
-    If an error occurs, nil plus an error message is returned.
+    Circular zip source references are not allowed.  For example, if
+    you add a file from ar2 into ar1, then you can't add a file from
+    ar1 to ar2.  Here is an example of this error:
+
+        ar1:add("filename.txt", "zip", ar2, 1)
+        ar2:add("filename.txt", "zip", ar1, 1) -- ERROR!
+
 
 ...zip_source = "file", filename[, start[, len]]
 
