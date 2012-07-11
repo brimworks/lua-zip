@@ -60,7 +60,7 @@ static int S_push_error(lua_State* L, int zip_error, int sys_error) {
 
 static int S_archive_open(lua_State* L) {
     const char*  path  = luaL_checkstring(L, 1);
-    int          flags = (lua_gettop(L) < 2) ? 0 : luaL_checkint(L, 2); 
+    int          flags = (lua_gettop(L) < 2) ? 0 : luaL_checkint(L, 2);
     struct zip** ar    = (struct zip**)lua_newuserdata(L, sizeof(struct zip*));
     int          err   = 0;
 
@@ -215,7 +215,7 @@ static int S_archive_stat(lua_State* L) {
     struct zip**    ar        = check_archive(L, 1);
     const char*     path      = (lua_isnumber(L, 2)) ? NULL : luaL_checkstring(L, 2);
     int             path_idx  = (lua_isnumber(L, 2)) ? luaL_checkint(L, 2)-1 : -1;
-    int             flags     = (lua_gettop(L) < 3)  ? 0    : luaL_checkint(L, 3); 
+    int             flags     = (lua_gettop(L) < 3)  ? 0    : luaL_checkint(L, 3);
     struct zip_stat stat;
     int             result;
 
@@ -265,7 +265,7 @@ static int S_archive_stat(lua_State* L) {
 static int S_archive_get_name(lua_State* L) {
     struct zip** ar        = check_archive(L, 1);
     int          path_idx  = luaL_checkint(L, 2)-1;
-    int          flags     = (lua_gettop(L) < 3)  ? 0    : luaL_checkint(L, 3); 
+    int          flags     = (lua_gettop(L) < 3)  ? 0    : luaL_checkint(L, 3);
     const char*  name;
 
     if ( ! *ar ) return 0;
@@ -318,7 +318,7 @@ static int S_archive_set_archive_comment(lua_State* L) {
 static int S_archive_get_file_comment(lua_State* L) {
     struct zip** ar        = check_archive(L, 1);
     int          path_idx  = luaL_checkint(L, 2)-1;
-    int          flags     = (lua_gettop(L) < 3)  ? 0    : luaL_checkint(L, 3); 
+    int          flags     = (lua_gettop(L) < 3)  ? 0    : luaL_checkint(L, 3);
     const char*  comment;
     int          comment_len;
 
@@ -338,7 +338,7 @@ static int S_archive_set_file_comment(lua_State* L) {
     struct zip** ar          = check_archive(L, 1);
     int          path_idx    = luaL_checkint(L, 2)-1;
     size_t       comment_len = 0;
-    const char*  comment     = lua_isnil(L, 2) ? NULL : luaL_checklstring(L, 2, &comment_len);
+    const char*  comment     = lua_isnil(L, 3) ? NULL : luaL_checklstring(L, 3, &comment_len);
 
     if ( ! *ar ) return 0;
 
@@ -498,7 +498,7 @@ static int S_archive_file_open(lua_State* L) {
     struct zip** ar        = check_archive(L, 1);
     const char*  path      = (lua_isnumber(L, 2)) ? NULL : luaL_checkstring(L, 2);
     int          path_idx  = (lua_isnumber(L, 2)) ? luaL_checkint(L, 2)-1 : -1;
-    int          flags     = (lua_gettop(L) < 3)  ? 0    : luaL_checkint(L, 3); 
+    int          flags     = (lua_gettop(L) < 3)  ? 0    : luaL_checkint(L, 3);
     struct zip_file** file = (struct zip_file**)
         lua_newuserdata(L, sizeof(struct zip_file*));
 
