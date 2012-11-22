@@ -4,12 +4,9 @@ version = "git-1"
 description = {
     summary = "Lua binding to libzip",
     detailed = [[
-To use this library, you need libzip, get it here:
-     http://www.nih.at/libzip/
-
-To build this library, you need CMake, get it here:
-    http://www.cmake.org/cmake/resources/software.html
-    ]],
+lua-zip is a binding to libzip, which you can get from:
+    http://www.nih.at/libzip/
+]],
     homepage = "https://github.com/brimworks/lua-zip",
     license = "MIT"
 }
