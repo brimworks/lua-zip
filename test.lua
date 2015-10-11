@@ -51,6 +51,7 @@ function main()
     test_add_dir()
     test_add()
     test_replace()
+    test_rename()
     test_zip_source()
     test_file_source()
 end
@@ -58,7 +59,7 @@ end
 function test_file_source()
     local test_file_source = tmp_dir .. "test_file_source.zip"
 
-    os.execute("rm -f " .. test_file_source)
+    os.remove(test_file_source)
 
     local ar = assert(zip.open(test_file_source, 
                                 zip.OR(zip.CREATE, zip.EXCL)));
@@ -85,8 +86,8 @@ function test_zip_source_circular()
     local test_zip_source1 = tmp_dir .. "test_zip_source1_gc.zip"
     local test_zip_source2 = tmp_dir .. "test_zip_source2_gc.zip"
 
-    os.execute("rm -f " .. test_zip_source1)
-    os.execute("rm -f " .. test_zip_source2)
+    os.remove(test_zip_source1)
+    os.remove(test_zip_source2)
 
     local ar1 = assert(zip.open(test_zip_source1, 
                                 zip.OR(zip.CREATE, zip.EXCL)));
@@ -109,7 +110,7 @@ end
 function test_zip_source()
     local test_zip_source = tmp_dir .. "test_zip_source.zip"
 
-    os.execute("rm -f " .. test_zip_source)
+    os.remove(test_zip_source)
 
     local ar_ro = assert(zip.open(test_zip_file))
 
@@ -141,7 +142,7 @@ end
 function test_replace()
     -- Make sure we start with a clean slate:
     local test_replace_file = tmp_dir .. "test_replace.zip"
-    os.execute("rm -f " .. test_replace_file)
+    os.remove(test_replace_file)
     local ar = assert(zip.open(test_replace_file,
                                 zip.OR(zip.CREATE, zip.EXCL)));
 
@@ -163,11 +164,39 @@ function test_replace()
     ar:close()
 end
 
+function test_rename()
+    -- Make sure we start with a clean slate:
+    local test_rename_file = tmp_dir .. "test_rename.zip"
+    os.remove(test_rename_file)
+    local ar = assert(zip.open(test_rename_file,
+                                zip.OR(zip.CREATE, zip.EXCL)));
+
+    local idx = ar:add("dir/test.txt", "string", "Contents")
+    local err = select(2, pcall(ar.rename, ar, "DNE", "new.txt"))
+    ok(string.match(err, "No such file"), "Rename non-existant file error="..tostring(err))
+
+    ar:rename(idx, "temp.txt")
+    ar:rename("temp.txt", "new.txt")
+    ar:close()
+
+    local ar = assert(zip.open(test_rename_file, zip.CHECKCONS))
+    ok(1 == #ar, "Archive contains one entry: " .. #ar)
+
+    local file =
+        assert(ar:open("new.TXT",
+                       zip.OR(zip.FL_NOCASE, zip.FL_NODIR)))
+    local str = assert(file:read(256))
+    ok(str == "Contents", tostring(str) .. " == 'Contents'")
+
+    file:close()
+    ar:close()
+end
+
 function test_add()
     -- Make sure we start with a clean slate:
     local test_add_file = tmp_dir .. "test_add.zip"
 
-    os.execute("rm -f " .. test_add_file)
+    os.remove(test_add_file)
     local ar = assert(zip.open(test_add_file,
                                 zip.OR(zip.CREATE, zip.EXCL)));
 
@@ -192,7 +221,7 @@ function test_add_dir()
     -- Make sure we start with a clean slate:
     local test_add_dir = tmp_dir .. "test_add_dir.zip"
 
-    os.execute("rm -f " .. test_add_dir)
+    os.remove(test_add_dir)
     local ar = assert(zip.open(test_add_dir,
                                 zip.OR(zip.CREATE, zip.EXCL)));
 
@@ -213,6 +242,7 @@ function test_add_dir()
 end
 
 function test_set_file_comment()
+    os.remove("test_set_file_comment.zip")
     local ar = assert(zip.open("test_set_file_comment.zip",
                                 zip.OR(zip.CREATE, zip.EXCL)));
 
@@ -236,6 +266,7 @@ function test_get_file_comment()
 end
 
 function test_set_archive_comment()
+    os.remove("test_set_archive_comment.zip")
     local ar = assert(zip.open("test_set_archive_comment.zip",
                                 zip.OR(zip.CREATE, zip.EXCL)));
 
@@ -352,6 +383,7 @@ function test_file_count()
 end
 
 function test_open_close()
+    os.remove("test_open_close.zip")
     local ar = assert(zip.open("test_open_close.zip", zip.CREATE))
     ar:close()
 

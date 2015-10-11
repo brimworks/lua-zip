@@ -236,6 +236,11 @@ file_idx = zip_arc:replace(file_idx, ...zip_source)
 
     If an error occurs, throws an error.
 
+zip_arc:rename(filename | file_idx, new_filename)
+
+    Rename the specified file in the archive.  May throw an error if
+    the entry being renamed does not exist.
+
 ..zip_source = "string", str
 
     The source to use will come from the specified string.
@@ -297,11 +302,6 @@ TODO: The following functions are not implemented yet:
             Get error information.  Must return two integers whic
             correspond to the libzip error code and system error code
             for any error (see above functions that may cause errors)
-
-zip_arc:rename(filename | file_idx, new_filename)
-
-    Rename the specified file in the archive.  May throw an error if
-    the entry being renamed does not exist.
 
 zip_arc:delete(filename | file_idx)
 
