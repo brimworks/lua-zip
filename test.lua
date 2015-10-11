@@ -230,7 +230,7 @@ function test_get_file_comment()
 
     local comment = ar:get_file_comment(2, zip.FL_UNCHANGED)
 
-    ok(nil == comment, "No comment set. TODO: test w/ real comment")
+    ok("" == comment, "No comment set. TODO: test w/ real comment")
 
     ar:close()
 end
@@ -239,14 +239,17 @@ function test_set_archive_comment()
     local ar = assert(zip.open("test_set_archive_comment.zip",
                                 zip.OR(zip.CREATE, zip.EXCL)));
 
-    ar:set_archive_comment("test\0fun")
+    ar:set_archive_comment("test fun")
 
-    ok(nil == ar:get_archive_comment(zip.FL_UNCHANGED),
+    ok("" == ar:get_archive_comment(zip.FL_UNCHANGED),
        "zip.FL_UNCHANGED works")
 
-    ok("test\0fun" == ar:get_archive_comment(),
-       tostring(ar:get_archive_comment()) .. " == 'test<null>fun'")
+    ok("test fun" == ar:get_archive_comment(),
+       tostring(ar:get_archive_comment()) .. " == 'test fun'")
 
+    -- BUG in libzip? Version 1.0.1 of libzip gives an error if you
+    -- don't add anything to the zip file.
+    ar:add_dir("something")
     ar:close()
 end
 
@@ -255,7 +258,7 @@ function test_get_archive_comment()
 
     local comment = ar:get_archive_comment(zip.FL_UNCHANGED);
 
-    ok(nil == comment, "No comment is set.  TODO: test w/ real comment")
+    ok("" == comment, "No comment is set.  TODO: test w/ real comment")
 
     ar:close()
 end
@@ -353,8 +356,8 @@ function test_open_close()
     ar:close()
 
     local err = select(2, zip.open("test_open_close.zip"))
-    ok(string.match(err, "No such file or directory"),
-       tostring(err) .. " matches 'No such file or directory'")
+    ok(string.match(err, "No such file"),
+       tostring(err) .. " matches 'No such file'")
 
     ar = assert(zip.open(test_zip_file))
     ar:close()

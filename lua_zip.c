@@ -5,17 +5,29 @@
 #include <errno.h>
 #include <string.h>
 
+#if LUA_VERSION_NUM > 501
+#define lua_objlen lua_rawlen
+#endif
+
+#if LUA_VERSION_NUM > 501
+#define lua_equal(L, idx1, idx2) lua_compare((L), (idx1), (idx2), LUA_OPEQ)
+#endif
+
+#if LUA_VERSION_NUM > 501
+#define luaL_register(L,_,funcs) luaL_setfuncs((L),funcs,0)
+#endif
+
 #define ARCHIVE_MT      "zip{archive}"
 #define ARCHIVE_FILE_MT "zip{archive.file}"
 #define WEAK_MT         "zip{weak}"
-
-#define check_archive(L, narg)                                   \
-    ((struct zip**)luaL_checkudata((L), (narg), ARCHIVE_MT))
 
 #define check_archive_file(L, narg)                                   \
     ((struct zip_file**)luaL_checkudata((L), (narg), ARCHIVE_FILE_MT))
 
 #define absindex(L,i) ((i)>0?(i):lua_gettop(L)+(i)+1)
+
+static int S_archive_gc(lua_State* L);
+static int S_archive_get_num_files(lua_State* L);
 
 static void stackdump(lua_State* l)
 {
@@ -42,6 +54,21 @@ static void stackdump(lua_State* l)
     }
 }
 
+static struct zip** check_archive(lua_State* L, int narg) {
+    luaL_checktype(L, narg, LUA_TUSERDATA);
+    if ( !lua_getmetatable(L, narg) ) {
+        luaL_argerror(L, narg, "zip{archive} expected (missing metatable)");
+        return NULL;
+    }
+    lua_getfield(L, -1, "__index");
+    luaL_getmetatable(L, ARCHIVE_MT);
+    if ( !lua_equal(L, -1, -2) ) {
+        luaL_argerror(L, narg, "zip{archive} expected (__index field incorrect)");
+        return NULL;
+    }
+    lua_pop(L, 3);
+    return (struct zip**)lua_touserdata(L, narg);
+}
 
 /* If zip_error is non-zero, then push an appropriate error message
  * onto the top of the Lua stack and return zip_error.  Otherwise,
@@ -74,10 +101,17 @@ static int S_archive_open(lua_State* L) {
         return 2;
     }
 
+    lua_newtable(L);
+
     luaL_getmetatable(L, ARCHIVE_MT);
     assert(!lua_isnil(L, -1)/* ARCHIVE_MT found? */);
+    lua_setfield(L, -2, "__index");
 
-    lua_setmetatable(L, -2);
+    lua_pushcfunction(L, S_archive_gc);
+    lua_setfield(L, -2, "__gc");
+
+    lua_pushcfunction(L, S_archive_get_num_files);
+    lua_setfield(L, -2, "__len");
 
     /* Each archive has a weak table of objects that are invalidated
      * when the archive is closed or garbage collected.
@@ -85,12 +119,22 @@ static int S_archive_open(lua_State* L) {
     lua_newtable(L);
     luaL_getmetatable(L, WEAK_MT);
     assert(!lua_isnil(L, -1)/* WEAK_MT found? */);
+    lua_setmetatable(L, -2);
+    lua_setfield(L, -2, "refs");
 
     lua_setmetatable(L, -2);
 
-    lua_setfenv(L, -2);
-
     return 1;
+}
+
+/* Push the refs weak table onto the stack for archive at index ar_idx.
+ */
+static void S_get_refs(lua_State* L, int ar_idx) {
+    int ok = lua_getmetatable(L, ar_idx);
+    assert(ok /* ar_idx has metatable */);
+    lua_getfield(L, -1, "refs");
+    assert(!lua_isnil(L, -1)/* getmetatable(ar_idx).refs must exist! */);
+    lua_remove(L, -2);
 }
 
 /* Invalidate all "weak" references.  This should be done just before
@@ -98,8 +142,8 @@ static int S_archive_open(lua_State* L) {
  * metamethod.
  */
 static void S_archive_gc_refs(lua_State* L, int ar_idx) {
-    lua_getfenv(L, ar_idx);
-    assert(lua_istable(L, -1) /* fenv of archive must exist! */);
+    ar_idx = absindex(L, ar_idx);
+    S_get_refs(L, ar_idx);
 
     /* NULL this archive to prevent infinite recursion
      */
@@ -116,7 +160,7 @@ static void S_archive_gc_refs(lua_State* L, int ar_idx) {
             lua_pop(L, 1);
         }
     }
-    lua_pop(L, 1); /* Pop the fenv */
+    lua_pop(L, 1); /* Pop the refs */
 }
 
 /* Adds a reference from the archive at ar_idx to the object at
@@ -132,8 +176,7 @@ static void S_archive_gc_refs(lua_State* L, int ar_idx) {
  */
 static void S_archive_add_ref(lua_State* L, int is_weak, int ar_idx, int obj_idx) {
     obj_idx = absindex(L, obj_idx);
-    lua_getfenv(L, ar_idx);
-    assert(lua_istable(L, -1) /* fenv of archive must exist! */);
+    S_get_refs(L, ar_idx);
 
     if ( is_weak ) {
         lua_pushvalue(L, obj_idx);
@@ -144,7 +187,7 @@ static void S_archive_add_ref(lua_State* L, int is_weak, int ar_idx, int obj_idx
         lua_rawseti(L, -2, lua_objlen(L, -2)+1);
     }
 
-    lua_pop(L, 1); /* Pop the fenv */
+    lua_pop(L, 1); /* Pop the refs */
 }
 
 /* Explicitly close the archive, throwing an error if there are any
@@ -159,8 +202,10 @@ static int S_archive_close(lua_State* L) {
     S_archive_gc_refs(L, 1);
 
     err = zip_close(ar);
-
-    if ( S_push_error(L, err, errno) ) lua_error(L);
+    if ( err != 0 ) {
+        S_push_error(L, zip_error_code_zip(zip_get_error(ar)), errno);
+        lua_error(L);
+    }
 
     return 0;
 }
@@ -382,6 +427,7 @@ static struct zip_source* S_create_source_string(lua_State* L, struct zip* ar) {
 
     lua_pushstring(L, zip_strerror(ar));
     lua_error(L);
+    return NULL;
 }
 
 static struct zip_source* S_create_source_file(lua_State* L, struct zip* ar) {
@@ -394,6 +440,7 @@ static struct zip_source* S_create_source_file(lua_State* L, struct zip* ar) {
 
     lua_pushstring(L, zip_strerror(ar));
     lua_error(L);
+    return NULL;
 }
 
 static struct zip_source* S_create_source_zip(lua_State* L, struct zip* ar) {
@@ -404,9 +451,10 @@ static struct zip_source* S_create_source_zip(lua_State* L, struct zip* ar) {
     int                len      = lua_gettop(L) < 8 ? -1 : luaL_checkint(L, 8);
     struct zip_source* src      = NULL;
 
-    if ( ! *other_ar ) return;
+    if ( ! *other_ar ) return NULL;
 
-    lua_getfenv(L, 1);
+    /* Check for circular reference */
+    S_get_refs(L, 1);
     lua_pushvalue(L, 4);
     lua_rawget(L, -2);
     if ( ! lua_isnil(L, -1) ) {
@@ -428,6 +476,7 @@ static struct zip_source* S_create_source_zip(lua_State* L, struct zip* ar) {
 
     lua_pushstring(L, zip_strerror(ar));
     lua_error(L);
+    return NULL;
 }
 
 typedef struct zip_source* (S_src_t)(lua_State*, struct zip*);
@@ -582,15 +631,6 @@ static int S_archive_file_read(lua_State* L) {
 static void S_register_archive(lua_State* L) {
     luaL_newmetatable(L, ARCHIVE_MT);
 
-    lua_pushvalue(L, -1);
-    lua_setfield(L, -2, "__index");
-
-    lua_pushcfunction(L, S_archive_gc);
-    lua_setfield(L, -2, "__gc");
-
-    lua_pushcfunction(L, S_archive_get_num_files);
-    lua_setfield(L, -2, "__len");
-
     lua_pushcfunction(L, S_archive_close);
     lua_setfield(L, -2, "close");
 
@@ -674,7 +714,7 @@ static int S_OR(lua_State* L) {
 }
 
 LUALIB_API int luaopen_brimworks_zip(lua_State* L) {
-    static luaL_reg fns[] = {
+    static luaL_Reg fns[] = {
         { "open",     S_archive_open },
         { "OR",       S_OR },
         { NULL, NULL }
