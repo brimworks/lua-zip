@@ -192,6 +192,36 @@ function test_rename()
     ar:close()
 end
 
+function test_delete()
+    -- Make sure we start with a clean slate:
+    local test_delete_file = tmp_dir .. "test_delete.zip"
+    os.remove(test_delete_file)
+    local ar = assert(zip.open(test_delete_file,
+                                zip.OR(zip.CREATE, zip.EXCL)));
+
+    ar:add_dir(".ignore")
+    local idx = ar:add("dir/test.txt", "string", "Contents")
+    local err = select(2, pcall(ar.delete, ar, "DNE"))
+    ok(string.match(err, "No such file"), "Delete non-existant file error="..tostring(err))
+
+    -- Delete using the index:
+    ar:delete(idx)
+
+    -- Delete using the filename:
+    idx = ar:add("dir/test2.txt", "string", "Content2")
+    ar:delete("dir/test2.txt")
+    ar:close()
+
+    local ar = assert(zip.open(test_delete_file, zip.CHECKCONS))
+    ok(1 == #ar, "Archive contains one entry: " .. #ar)
+
+    -- TODO: How do you determine if this is a directory?
+    local sb = ar:stat(".ignore")
+
+    file:close()
+    ar:close()
+end
+
 function test_add()
     -- Make sure we start with a clean slate:
     local test_add_file = tmp_dir .. "test_add.zip"

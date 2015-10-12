@@ -241,6 +241,11 @@ zip_arc:rename(filename | file_idx, new_filename)
     Rename the specified file in the archive.  May throw an error if
     the entry being renamed does not exist.
 
+zip_arc:delete(filename | file_idx)
+
+    Delete the specified file from the archive.  May throw an error if
+    the specified filename or file index does not exist.
+
 ..zip_source = "string", str
 
     The source to use will come from the specified string.
@@ -303,7 +308,3 @@ TODO: The following functions are not implemented yet:
             correspond to the libzip error code and system error code
             for any error (see above functions that may cause errors)
 
-zip_arc:delete(filename | file_idx)
-
-    Delete he specified file from the archive.  May throw an error if
-    the specified filename or file index does not exist.

@@ -542,6 +542,27 @@ static int S_archive_rename(lua_State* L) {
     return 0;
 }
 
+static int S_archive_delete(lua_State* L) {
+    struct zip**        ar        = check_archive(L, 1);
+    const char*         path      = (lua_isnumber(L, 2)) ? NULL : luaL_checkstring(L, 2);
+    int                 path_idx  = (lua_isnumber(L, 2)) ? luaL_checkint(L, 2)-1 : -1;
+
+    if ( ! *ar ) return 0;
+
+    if ( NULL != path ) {
+        path_idx = zip_name_locate(*ar, path, 0);
+        if ( path_idx < 0 ) {
+            lua_pushfstring(L, "%s '%s'", zip_strerror(*ar), path);
+            lua_error(L);
+        }
+    }
+    if ( zip_delete(*ar, path_idx) != 0 ) {
+        lua_pushstring(L, zip_strerror(*ar));
+        lua_error(L);
+    }
+    return 0;
+}
+
 static int S_archive_add(lua_State* L) {
     struct zip**        ar   = check_archive(L, 1);
     const char*         path = luaL_checkstring(L, 2);
