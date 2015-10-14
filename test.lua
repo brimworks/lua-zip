@@ -52,6 +52,7 @@ function main()
     test_add()
     test_replace()
     test_rename()
+    test_delete()
     test_zip_source()
     test_file_source()
 end
@@ -218,7 +219,6 @@ function test_delete()
     -- TODO: How do you determine if this is a directory?
     local sb = ar:stat(".ignore")
 
-    file:close()
     ar:close()
 end
 
