@@ -716,6 +716,9 @@ static void S_register_archive(lua_State* L) {
     lua_pushcfunction(L, S_archive_rename);
     lua_setfield(L, -2, "rename");
 
+    lua_pushcfunction(L, S_archive_delete);
+    lua_setfield(L, -2, "delete");
+
     lua_pop(L, 1);
 }
 
