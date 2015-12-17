@@ -1,5 +1,6 @@
-
 This is a fork from github.com/MisterDA/lua-zip which is a fork from brimworks/lua-zip which only supports Lua 5.3.x
+
+For licence and origin information, see [Information.txt](Information.txt)
 
 # Requirements
 
