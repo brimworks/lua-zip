@@ -307,6 +307,27 @@ static int S_archive_stat(lua_State* L) {
     return 1;
 }
 
+static int S_archive_get_external_attributes(lua_State* L) {
+    struct zip** ar       = check_archive(L, 1);
+    int          path_idx = luaL_checkint(L, 2)-1;
+    int          flags    = (lua_gettop(L) < 3) ? 0 : luaL_checkint(L, 3);
+
+    if ( ! *ar ) return 0;
+
+    zip_uint32_t attributes;
+    int result = zip_file_get_external_attributes(*ar, path_idx, flags, NULL, &attributes);
+
+    if ( result != 0 ) {
+        lua_pushnil(L);
+        lua_pushstring(L, zip_strerror(*ar));
+        return 2;
+    }
+
+    lua_pushinteger(L, attributes);
+
+    return 1;
+}
+
 static int S_archive_get_name(lua_State* L) {
     struct zip** ar        = check_archive(L, 1);
     int          path_idx  = luaL_checkint(L, 2)-1;
@@ -688,6 +709,9 @@ static void S_register_archive(lua_State* L) {
 
     lua_pushcfunction(L, S_archive_stat);
     lua_setfield(L, -2, "stat");
+
+    lua_pushcfunction(L, S_archive_get_external_attributes);
+    lua_setfield(L, -2, "get_external_attributes");
 
     lua_pushcfunction(L, S_archive_get_name);
     lua_setfield(L, -2, "get_name");
