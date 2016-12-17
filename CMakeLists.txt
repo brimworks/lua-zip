@@ -9,6 +9,11 @@
 PROJECT(lua-zip C)
 CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
 
+OPTION(LUA_ZIP_BUILD_SHARED "" ON)
+IF(LUA_ZIP_BUILD_SHARED)
+  SET(LUA_ZIP_LIBRARY_TYPE MODULE)
+ENDIF()
+
 # Basic configurations
   SET(INSTALL_CMOD share/lua/cmod CACHE PATH "Directory to install Lua binary modules (configure lua via LUA_CPATH)")
 # / configs
@@ -28,7 +33,7 @@ CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
 
 # Define how to build zip.so:
   INCLUDE_DIRECTORIES(${LIBZIP_INCLUDE_DIR} ${LUA_INCLUDE_DIR})
-  ADD_LIBRARY(cmod_zip MODULE lua_zip.c lua_zip.def)
+  ADD_LIBRARY(cmod_zip ${LUA_ZIP_LIBRARY_TYPE} lua_zip.c lua_zip.def)
   SET_TARGET_PROPERTIES(cmod_zip PROPERTIES PREFIX "")
   SET_TARGET_PROPERTIES(cmod_zip PROPERTIES LIBRARY_OUTPUT_DIRECTORY brimworks)
   SET_TARGET_PROPERTIES(cmod_zip PROPERTIES OUTPUT_NAME zip)
