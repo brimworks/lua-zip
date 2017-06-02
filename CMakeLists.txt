@@ -23,7 +23,7 @@ CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
 # / Find libzip
 
 # Find lua
-  FIND_PACKAGE(Lua51 REQUIRED)
+  FIND_PACKAGE(Lua REQUIRED)
 # / Find lua
 
 # Define how to build zip.so:
