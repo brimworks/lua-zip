@@ -26,6 +26,7 @@ external_dependencies = {
       library = "zip",
    }
 }
+
 build = {
    type = "builtin",
    modules = {
@@ -35,6 +36,9 @@ build = {
          libdirs   = { "$(ZIP_LIBDIR)" },
          libraries = { "zip" },
       }
-   }
+   },
+   platforms = { windows = { modules = { ["brimworks.zip"] = {
+      libraries = { "zip", "advapi32", "kernel32", "user32" },
+      defines   = { "ZIP_STATIC" },
+   }}}},
 }
-
