@@ -75,10 +75,10 @@ static struct zip** check_archive(lua_State* L, int narg) {
  * just return 0.
  */
 static int S_push_error(lua_State* L, int zip_error, int sys_error) {
-    char buff[1024];
+    char buff[1024]; int len;
     if ( 0 == zip_error ) return 0;
 
-    int len = zip_error_to_str(buff, sizeof(buff), zip_error, sys_error);
+    len = zip_error_to_str(buff, sizeof(buff), zip_error, sys_error);
     if ( len >= sizeof(buff) ) len = sizeof(buff)-1;
     lua_pushlstring(L, buff, len);
 
