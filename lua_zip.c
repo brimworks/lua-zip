@@ -5,17 +5,6 @@
 #include <errno.h>
 #include <string.h>
 
-#if LUA_VERSION_NUM > 501
-#define lua_objlen lua_rawlen
-#endif
-
-#if LUA_VERSION_NUM > 501
-#define lua_equal(L, idx1, idx2) lua_compare((L), (idx1), (idx2), LUA_OPEQ)
-#endif
-
-#if LUA_VERSION_NUM > 501
-#define luaL_register(L,_,funcs) luaL_setfuncs((L),funcs,0)
-#endif
 
 #define ARCHIVE_MT      "zip{archive}"
 #define ARCHIVE_FILE_MT "zip{archive.file}"
