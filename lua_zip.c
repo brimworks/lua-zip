@@ -1,3 +1,6 @@
+#define LUA_COMPAT_ALL          /* Lua 5.2 -> Lua 5.1 */
+#define LUA_COMPAT_5_1          /* Lua 5.3 -> Lua 5.1 */
+
 #include <lauxlib.h>
 #include <lua.h>
 #include <zip.h>
