@@ -1,5 +1,5 @@
 package = "lua-zip"
-version = "git-1"
+version = "scm-1"
 
 description = {
     summary = "Lua binding to libzip",
@@ -17,7 +17,7 @@ source = {
 }
 
 dependencies = {
-    "lua >= 5.1"
+    "lua"
 }
 
 external_dependencies = {
@@ -37,4 +37,3 @@ build = {
       }
    }
 }
-
