@@ -27,7 +27,7 @@ function load_libs(build_dir)
     is_deeply = tap.is_deeply
 
     -- Export some globals:
-    test_zip_file = string.gsub(_0, "(.*/)(.*)", "%1test.zip")
+    test_zip_file = build_dir .. "../" .. "test.zip"
     tmp_dir = build_dir .. "/test-tmp/"
     os.execute("mkdir -p " .. tmp_dir)
 end

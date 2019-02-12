@@ -1,3 +1,6 @@
+#define LUA_COMPAT_ALL          /* Lua 5.2 -> Lua 5.1 */
+#define LUA_COMPAT_5_1          /* Lua 5.3 -> Lua 5.1 */
+
 #include <lauxlib.h>
 #include <lua.h>
 #include <zip.h>
@@ -5,17 +8,6 @@
 #include <errno.h>
 #include <string.h>
 
-#if LUA_VERSION_NUM > 501
-#define lua_objlen lua_rawlen
-#endif
-
-#if LUA_VERSION_NUM > 501
-#define lua_equal(L, idx1, idx2) lua_compare((L), (idx1), (idx2), LUA_OPEQ)
-#endif
-
-#if LUA_VERSION_NUM > 501
-#define luaL_register(L,_,funcs) luaL_setfuncs((L),funcs,0)
-#endif
 
 #define ARCHIVE_MT      "zip{archive}"
 #define ARCHIVE_FILE_MT "zip{archive.file}"
@@ -303,6 +295,27 @@ static int S_archive_stat(lua_State* L) {
 
     lua_pushnumber(L, stat.encryption_method);
     lua_setfield(L, -2, "encryption_method");
+
+    return 1;
+}
+
+static int S_archive_get_external_attributes(lua_State* L) {
+    struct zip** ar       = check_archive(L, 1);
+    int          path_idx = luaL_checkint(L, 2)-1;
+    int          flags    = (lua_gettop(L) < 3) ? 0 : luaL_checkint(L, 3);
+
+    if ( ! *ar ) return 0;
+
+    zip_uint32_t attributes;
+    int result = zip_file_get_external_attributes(*ar, path_idx, flags, NULL, &attributes);
+
+    if ( result != 0 ) {
+        lua_pushnil(L);
+        lua_pushstring(L, zip_strerror(*ar));
+        return 2;
+    }
+
+    lua_pushinteger(L, attributes);
 
     return 1;
 }
@@ -688,6 +701,9 @@ static void S_register_archive(lua_State* L) {
 
     lua_pushcfunction(L, S_archive_stat);
     lua_setfield(L, -2, "stat");
+
+    lua_pushcfunction(L, S_archive_get_external_attributes);
+    lua_setfield(L, -2, "get_external_attributes");
 
     lua_pushcfunction(L, S_archive_get_name);
     lua_setfield(L, -2, "get_name");
