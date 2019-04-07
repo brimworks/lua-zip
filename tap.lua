@@ -1,10 +1,9 @@
 local os = require("os")
-module(..., package.seeall)
 
 local counter = 1
 local failed  = false
 
-function ok(assert_true, desc)
+local function ok(assert_true, desc)
    local msg = ( assert_true and "ok " or "not ok " ) .. counter
    if ( not assert_true ) then
       failed = true
@@ -16,7 +15,7 @@ function ok(assert_true, desc)
    counter = counter + 1
 end
 
-function is_deeply(got, expect, msg, context)
+local function is_deeply(got, expect, msg, context)
     if ( type(expect) ~= "table" ) then
         print("# Expected [" .. context .. "] to be a table")
         ok(false, msg)
@@ -50,6 +49,12 @@ function is_deeply(got, expect, msg, context)
     return true
 end
 
-function exit()
+local function exit()
    os.exit(failed and 1 or 0)
 end
+
+return {
+   ["ok"] = ok,
+   ["is_deeply"] = is_deeply,
+   ["exit"] = exit
+}
