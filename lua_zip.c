@@ -1,6 +1,3 @@
-#define LUA_COMPAT_ALL          /* Lua 5.2 -> Lua 5.1 */
-#define LUA_COMPAT_5_1          /* Lua 5.3 -> Lua 5.1 */
-
 #include <lauxlib.h>
 #include <lua.h>
 #include <zip.h>
@@ -8,6 +5,19 @@
 #include <errno.h>
 #include <string.h>
 
+#if LUA_VERSION_NUM > 502 && !defined(LUA_COMPAT_APIINTCASTS)
+#define luaL_checkint(L,n)      ((int)luaL_checkinteger(L, (n)))
+#endif
+
+#if LUA_VERSION_NUM > 501
+#if !defined(LUA_COMPAT_MODULE)
+#define luaL_register(L,_,funcs) luaL_setfuncs((L),funcs,0)
+#endif
+#if !defined(LUA_COMPAT_ALL) || !defined(LUA_COMPAT_5_1)
+#define lua_objlen(L,i)         lua_rawlen(L, (i))
+#define lua_equal(L,idx1,idx2)          lua_compare(L,(idx1),(idx2),LUA_OPEQ)
+#endif
+#endif
 
 #define ARCHIVE_MT      "zip{archive}"
 #define ARCHIVE_FILE_MT "zip{archive.file}"
