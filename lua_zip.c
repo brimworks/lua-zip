@@ -91,14 +91,14 @@ static int S_push_error(lua_State* L, int zip_error, int sys_error) {
 //open_memory("string", str[, flags])
 //open_memory([flags])
 static int S_archive_open_memory(lua_State* L) {
-    const char*  path   = 0;
-    struct zip** ar     = 0;
-    zip_source_t *zsmem = 0;
+    const char*  path   = NULL;
+    struct zip** ar     = NULL;
+    zip_source_t *zsmem = NULL;
     zip_error_t error;
     int flags           = 0;
-    const char * buf = 0;
-    size_t buf_sz = 0;
-    const char* errmsg = 0;
+    const char * buf    = NULL;
+    size_t buf_sz       = 0;
+    const char* errmsg  = NULL;
 
     size_t       ln;
     path = lua_tolstring(L, 1, &ln);
@@ -116,12 +116,16 @@ static int S_archive_open_memory(lua_State* L) {
 
     if (!errmsg && path) {
         FILE *fp = fopen(path, "rb");
-        if (!fp) errmsg = strerror(errno); //FIXME: strerror() is not thread-safe
+        if (!fp) {
+            //Lua will clean up stack on return
+            char *ptr = lua_newuserdata(L, 1024);
+            strerror_r(errno, ptr, 1024);
+            errmsg = (const char*)ptr;
+        }
         else{
             fseek(fp, 0, SEEK_END);
             buf_sz = ftell(fp);
             fseek(fp, 0, SEEK_SET);
-            //char *data = (char*)malloc(buf_sz);
             char *data = (char*)lua_newuserdata(L, buf_sz);
             size_t was_read = fread(data, 1,  buf_sz, fp);
             buf = (const char*) data;
@@ -301,7 +305,7 @@ static int S_archive_close(lua_State* L) {
     lua_getmetatable(L, 1);
     lua_getfield(L, -1, "__source_memory");
     zip_source_t *zsmem = (zip_source_t*)lua_touserdata(L, -1);
-    if (!lua_islightuserdata(L, -1)) zsmem = 0;
+    if (!lua_islightuserdata(L, -1)) zsmem = NULL;
 
     S_archive_gc_refs(L, 1);
 
@@ -346,7 +350,7 @@ static int S_archive_gc(lua_State* L) {
     lua_getmetatable(L, 1);
     lua_getfield(L, -1, "__source_memory");
     zip_source_t *zsmem = (zip_source_t*)lua_touserdata(L, -1);
-    if (!lua_islightuserdata(L, -1)) zsmem = 0;
+    if (!lua_islightuserdata(L, -1)) zsmem = NULL;
 
     S_archive_gc_refs(L, 1);
 
