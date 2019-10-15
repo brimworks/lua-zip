@@ -94,6 +94,23 @@ local zip_arc = zip.open(filename [, flags])
 
     If an error occurs, returns nil plus an error message.
 
+local zip_arc = zip.open_memory()
+local zip_arc = zip.open_memory("file", filename [, flags])
+local zip_arc = zip.open_memory("string", str [, flags])
+    Make zip in memory.
+    Fill it up with a zip file or a string content (which must be a zip)
+    Optionally specify a bitwise flags (see zip.open)
+
+    zip_arc:close() will return zip content.
+    ---
+    local arc = zip.open_memory("file", "template.odt")
+    local icon = arc:name_locate"content.xml"
+    arc:replace(icon, "string", newcontent)
+    local zdata = arc:close()
+    send_over_network(zdata)
+    ---
+
+
 zip_arc:close()
 
     If any files within were changed, those changes are written to
