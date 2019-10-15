@@ -110,6 +110,7 @@ local zip_arc = zip.open_memory("string", str [, flags])
     send_over_network(zdata)
     ---
 
+    If an error occurs, returns nil plus an error message.
 
 zip_arc:close()
 
