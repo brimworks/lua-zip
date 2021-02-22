@@ -19,25 +19,29 @@ ENDIF()
 # / configs
 
 # Find libzip
+IF(NOT DEFINED LIBZIP_INCLUDE_DIR)
   FIND_LIBRARY (LIBZIP_LIBRARY NAMES zip)
   FIND_PATH (LIBZIP_INCLUDE_DIR zip.h
     PATH_SUFFIXES include/zip include
     ) # Find header
   INCLUDE(FindPackageHandleStandardArgs)
   FIND_PACKAGE_HANDLE_STANDARD_ARGS(libzip  DEFAULT_MSG  LIBZIP_LIBRARY LIBZIP_INCLUDE_DIR)
+ENDIF()
 # / Find libzip
 
 # Find lua
+IF(NOT DEFINED LUA_INCLUDE_DIR)
   FIND_PACKAGE(Lua REQUIRED)
+ENDIF()
 # / Find lua
 
 # Define how to build zip.so:
   INCLUDE_DIRECTORIES(${LIBZIP_INCLUDE_DIR} ${LUA_INCLUDE_DIR})
-  ADD_LIBRARY(cmod_zip ${LUA_ZIP_LIBRARY_TYPE} lua_zip.c lua_zip.def)
-  SET_TARGET_PROPERTIES(cmod_zip PROPERTIES PREFIX "")
-  SET_TARGET_PROPERTIES(cmod_zip PROPERTIES LIBRARY_OUTPUT_DIRECTORY brimworks)
-  SET_TARGET_PROPERTIES(cmod_zip PROPERTIES OUTPUT_NAME zip)
-  TARGET_LINK_LIBRARIES(cmod_zip ${LUA_LIBRARIES} ${LIBZIP_LIBRARY})  
+  ADD_LIBRARY(lua_zip ${LUA_ZIP_LIBRARY_TYPE} lua_zip.c lua_zip.def)
+  SET_TARGET_PROPERTIES(lua_zip PROPERTIES PREFIX "")
+  SET_TARGET_PROPERTIES(lua_zip PROPERTIES LIBRARY_OUTPUT_DIRECTORY brimworks)
+  SET_TARGET_PROPERTIES(lua_zip PROPERTIES OUTPUT_NAME zip)
+  TARGET_LINK_LIBRARIES(lua_zip ${LUA_LIBRARIES} ${LIBZIP_LIBRARY})  
 # / build zip.so
 
 # Define how to test zip.so:
@@ -47,5 +51,5 @@ ENDIF()
 # / test zip.so
 
 # Where to install stuff
-  INSTALL (TARGETS cmod_zip DESTINATION ${INSTALL_CMOD}/brimworks)
+  INSTALL (TARGETS lua_zip DESTINATION ${INSTALL_CMOD}/brimworks)
 # / Where to install.
