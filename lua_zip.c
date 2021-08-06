@@ -87,6 +87,107 @@ static int S_push_error(lua_State* L, int zip_error, int sys_error) {
     return zip_error;
 }
 
+//open_memory("file", filename[, flags])
+//open_memory("string", str[, flags])
+//open_memory([flags])
+static int S_archive_open_memory(lua_State* L) {
+    const char*  path   = NULL;
+    struct zip** ar     = NULL;
+    zip_source_t *zsmem = NULL;
+    zip_error_t error;
+    int flags           = 0;
+    const char * buf    = NULL;
+    size_t buf_sz       = 0;
+    const char* errmsg  = NULL;
+
+    size_t       ln;
+    path = lua_tolstring(L, 1, &ln);
+    if (path && ln==4 && path[0]=='f' && path[1]=='i' && path[2]=='l' && path[3]=='e'){
+        path = lua_tostring(L, 2);
+        flags = lua_tointeger(L, 3);
+    }else if (path && ln==6 && path[0]=='s' && path[1]=='t' && path[2]=='r' && path[3]=='i'){
+        buf = lua_tolstring(L, 2, &buf_sz);
+        path = 0;
+        if (!buf || !buf_sz) errmsg = "invalid argument";
+        flags = lua_tointeger(L, 3);
+    }else{
+        flags = lua_tointeger(L, 1);
+    }
+
+    if (!errmsg && path) {
+        FILE *fp = fopen(path, "rb");
+        if (!fp) {
+            //Lua will clean up stack on return
+            char *ptr = lua_newuserdata(L, 1024);
+            strerror_r(errno, ptr, 1024);
+            errmsg = (const char*)ptr;
+        }
+        else{
+            fseek(fp, 0, SEEK_END);
+            buf_sz = ftell(fp);
+            fseek(fp, 0, SEEK_SET);
+            char *data = (char*)lua_newuserdata(L, buf_sz);
+            size_t was_read = fread(data, 1,  buf_sz, fp);
+            buf = (const char*) data;
+            fclose(fp);
+        }
+    }else if (!buf) {
+        flags |= ZIP_TRUNCATE;
+    }
+
+    if (!errmsg && !(zsmem = zip_source_buffer_create(0, 0, 0, &error)))
+        errmsg = zip_error_strerror(&error);
+
+    if (!errmsg && buf){
+        zip_source_begin_write(zsmem);
+        zip_source_write(zsmem, buf, buf_sz);
+        zip_source_commit_write(zsmem);
+    }
+
+    if (!errmsg){
+        assert(zsmem);
+        zip_source_keep(zsmem); //zip_close frees source, so add ref
+        ar = (struct zip**)lua_newuserdata(L, sizeof(struct zip*));
+        *ar = zip_open_from_source(zsmem, flags, &error);
+        if (!*ar) errmsg = zip_error_strerror(&error);
+    }
+
+    if (errmsg){
+        lua_pushnil(L);
+        lua_pushstring(L, errmsg);
+        return 2;
+    }
+
+    assert(lua_isuserdata(L, -1));
+    lua_newtable(L);
+
+    lua_pushlightuserdata(L, zsmem);
+    lua_setfield(L, -2, "__source_memory");
+
+    luaL_getmetatable(L, ARCHIVE_MT);
+    assert(!lua_isnil(L, -1)/* ARCHIVE_MT found? */);
+    lua_setfield(L, -2, "__index");
+
+    lua_pushcfunction(L, S_archive_gc);
+    lua_setfield(L, -2, "__gc");
+
+    lua_pushcfunction(L, S_archive_get_num_files);
+    lua_setfield(L, -2, "__len");
+
+    /* Each archive has a weak table of objects that are invalidated
+     * when the archive is closed or garbage collected.
+     */
+    lua_newtable(L);
+    luaL_getmetatable(L, WEAK_MT);
+    assert(!lua_isnil(L, -1)/* WEAK_MT found? */);
+    lua_setmetatable(L, -2);
+    lua_setfield(L, -2, "refs");
+
+    lua_setmetatable(L, -2);
+
+    return 1;
+}
+
 static int S_archive_open(lua_State* L) {
     const char*  path  = luaL_checkstring(L, 1);
     int          flags = (lua_gettop(L) < 2) ? 0 : luaL_checkint(L, 2);
@@ -201,6 +302,11 @@ static int S_archive_close(lua_State* L) {
 
     if ( ! ar ) return 0;
 
+    lua_getmetatable(L, 1);
+    lua_getfield(L, -1, "__source_memory");
+    zip_source_t *zsmem = (zip_source_t*)lua_touserdata(L, -1);
+    if (!lua_islightuserdata(L, -1)) zsmem = NULL;
+
     S_archive_gc_refs(L, 1);
 
     err = zip_close(ar);
@@ -209,6 +315,27 @@ static int S_archive_close(lua_State* L) {
         lua_error(L);
     }
 
+    if (zsmem){
+        int rc = zip_source_open(zsmem);
+        if (rc){
+            zip_error_t* err = zip_source_error(zsmem);
+            lua_pushstring(L, zip_error_strerror(err));
+            return 1;
+        }
+        zip_source_seek(zsmem, 0, SEEK_END);
+        zip_int64_t sz = zip_source_tell(zsmem);
+        zip_source_seek(zsmem, 0, SEEK_SET);
+
+        char *ptr = (char*)lua_newuserdata(L, sz);
+        zip_source_read(zsmem, ptr, sz);
+
+        zip_source_close(zsmem);
+
+        zip_source_free(zsmem);
+
+        lua_pushlstring(L, ptr, sz);
+        return 1;
+    }
     return 0;
 }
 
@@ -220,11 +347,17 @@ static int S_archive_gc(lua_State* L) {
 
     if ( ! ar ) return 0;
 
+    lua_getmetatable(L, 1);
+    lua_getfield(L, -1, "__source_memory");
+    zip_source_t *zsmem = (zip_source_t*)lua_touserdata(L, -1);
+    if (!lua_islightuserdata(L, -1)) zsmem = NULL;
+
     S_archive_gc_refs(L, 1);
 
     zip_unchange_all(ar);
     zip_close(ar);
 
+    if (zsmem) zip_source_free(zsmem);
     return 0;
 }
 
@@ -790,8 +923,9 @@ static int S_OR(lua_State* L) {
 
 LUALIB_API int luaopen_brimworks_zip(lua_State* L) {
     static luaL_Reg fns[] = {
-        { "open",     S_archive_open },
-        { "OR",       S_OR },
+        { "open_memory",  S_archive_open_memory },
+        { "open",         S_archive_open },
+        { "OR",           S_OR },
         { NULL, NULL }
     };
 
