@@ -279,6 +279,16 @@ zip_arc:delete(filename | file_idx)
     whole file (starting from start) is used.
 
 ######################################################################
+Examples
+######################################################################
+
+- Creating zip archive from file in Lua:
+  https://onelinerhub.com/lua/how-to-compress-a-file-to-zip-archive
+
+- Reading file contents from zip archive in Lua:
+  https://onelinerhub.com/lua/how-to-extract-zip-file
+
+######################################################################
 TODO: The following functions are not implemented yet:
 ######################################################################
 
